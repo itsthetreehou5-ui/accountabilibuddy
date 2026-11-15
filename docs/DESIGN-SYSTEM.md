@@ -113,3 +113,23 @@ Avoid conflating federal House/Senate authority with state governors, state legi
 Example about an Iowa abortion measure is **hypothetical**, not a pre-verified news event or accusation. Nothing is published as a local news fact without primary sources and review.
 
 Current build: versioned civic-event schema, granular actor roles, source-linked attributions, moderated promise alignment, read-only published-event APIs, compact location contextual module and event details. No actual verified local civic event corpus is populated yet. The event module must state incomplete coverage instead of making up headlines.
+
+## Kinetic map and contextual editorial system — November 15, 2026
+
+The geographic stage is the primary interaction, not a decorative illustration or a gateway to disconnected pages.
+
+**Focus-state treatments**
+- A selected state/county produces a smoothly interpolated map viewport, geographic context label, focus shadow, layer emphasis and translucent information surfaces. County labels and borders enter after official geometry is retrieved.
+- Hover feedback previews geographic names without changing the user's selected context.
+- Zoom-in/zoom-out, previous/next geography, national reset, keyboard selection and reduced-motion handling remain available.
+- Dark navy / newsroom red / clear white and neutral county coloring are maintained. The red and blue nationwide map uses a dated 2024 FEC-certified presidential winner baseline, **not 2026 congressional results or predicted partisan lean**.
+
+**Map-attached contextual newsroom**
+- The standalone “EXPLORE / MORE THAN THE HEADLINES” feature strip has been retired. Its three functional concepts now exist as map-linked contextual lenses: **At a glance**, **Timeline**, **Promises & actions**, and **Evidence & context**.
+- The side rail stays short and decision-oriented; information and relevant actions can expand in the dock immediately under the map.
+- The editorial briefing below receives the active state/county and explicitly remains an explainer until real verified local reporting is ingested.
+- Contextual lenses describe future sources honestly when publication coverage is empty. No placeholder election winner or unverified political accusation may be published.
+- Visual animation is bounded, interruptible, accessible, and is never required to obtain an answer.
+- The native SVG geographic prototype should be upgraded to MapLibre/vector tiles plus React coordinated state when verified district/large county geometry and actual reporting demand it.
+
+**QA required before public launch:** external browser snapshots at laptop/desktop/mobile widths; map readability for AK/HI, small northeastern states and county enclaves; keyboard/zoom/a11y tests; frame-budget performance; browser-based interaction tests; verify absence of console errors. Script syntax and Cloudflare deployment acceptance alone are not equivalent to full rendering QA.
