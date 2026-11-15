@@ -100,3 +100,14 @@ test('map-first homepage offers immediate state answers',async()=>{
  assert.match(html,/heroUpdate\(\)/);
  assert.match(html,/A precise address is needed/);
 });
+
+test('map interactions smoothly interpolate and honor reduced motion',async()=>{
+ const r=await worker.fetch(req('/'),{});
+ const html=await r.text();
+ assert.match(html,/function easedMapZoom/);
+ assert.match(html,/requestAnimationFrame\(tick\)/);
+ assert.match(html,/cancelAnimationFrame\(previous\)/);
+ assert.match(html,/reduceMotion\.matches/);
+ assert.match(html,/targetViewport\(heroMap,active,2\.5\)/);
+ assert.match(html,/ABB warm editorial system/);
+});
