@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import maplibregl, { setWorkerUrl, type GeoJSONSource, type Map as MapLibreMap, type ExpressionSpecification } from 'maplibre-gl';
+import { Map as MapLibre, NavigationControl, setWorkerUrl, type GeoJSONSource, type Map as MapLibreMap, type ExpressionSpecification } from 'maplibre-gl';
 import mapLibreWorkerURL from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 setWorkerUrl(mapLibreWorkerURL);
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -169,7 +169,7 @@ export default function App(){
   if(!mapContainer.current||mapRef.current)return;
   let map:MapLibreMap;
   try{
-   map=new maplibregl.Map({
+   map=new MapLibre({
     container:mapContainer.current,
     style:'https://tiles.openfreemap.org/styles/liberty',
     center:[-97.6,39.5],zoom:3.3,
@@ -180,7 +180,7 @@ export default function App(){
    });
   }catch(e){setMapError('This device could not start the WebGL map. The accessible state list below is still available.');return}
   mapRef.current=map;
-  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+  map.addControl(new NavigationControl({showCompass:false}),'top-left');
   map.on('load',()=>{
    map.addSource('abb-states',{type:'geojson',data:stateRef.current,promoteId:'STUSPS'});
    map.addLayer({id:'abb-state-fills',type:'fill',source:'abb-states',paint:{
