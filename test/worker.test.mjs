@@ -138,3 +138,26 @@ test('Census county geometry is filtered to selected state',async()=>{
   assert.equal(body.features[0].properties.GEOID,'35001');
  }finally{globalThis.fetch=prior}
 });
+
+test('unpublished election contests never appear in state race API',async()=>{
+ const db={prepare(sql){assert.match(sql,/publication_status='published'/);return{bind(state,date){assert.equal(state,'NM');assert.equal(date,'2026-11-03');return{all:async()=>({results:[]})}}}}};
+ const r=await worker.fetch(req('/api/elections/contests?state=NM'),{DB:db});
+ const j=await r.json();
+ assert.equal(r.status,200);
+ assert.equal(j.published_only,true);
+ assert.deepEqual(j.items,[]);
+ assert.equal(j.complete,false);
+});
+test('election race endpoints reject unsupported states and mutations',async()=>{
+ assert.equal((await worker.fetch(req('/api/elections/contests?state=ZZ'),{})).status,400);
+ assert.equal((await worker.fetch(req('/api/elections/contests?state=NM','POST'),{})).status,405);
+});
+test('ABB maps distinguish unverified county lean from election data',async()=>{
+ const r=await worker.fetch(req('/'),{});
+ const html=await r.text();
+ assert.match(html,/id="county-select"/);
+ assert.match(html,/function loadStateContests/);
+ assert.match(html,/data-race="senate"/);
+ assert.match(html,/data-race="house"/);
+ assert.match(html,/No 2026 contests have been published/);
+});
