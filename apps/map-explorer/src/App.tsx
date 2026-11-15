@@ -13,11 +13,11 @@ type BallotMeasure = {id:string;designation:string;title:string;election_date:st
 type View = 'overview' | 'ballot' | 'races' | 'timeline' | 'accountability' | 'sources';
 type Audience = 'simple' | 'explore' | 'research';
 const EMPTY: GeoCollection = { type: 'FeatureCollection', features: [] };
-const DEM_2024 = new Set(['CA','CO','CT','DE','HI','IL','MA','MD','ME','MN','NH','NJ','NM','NY','OR','RI','VA','VT','WA']);
+const DEM_2024 = new Set(['DC','CA','CO','CT','DE','HI','IL','MA','MD','ME','MN','NH','NJ','NM','NY','OR','RI','VA','VT','WA']);
 const BLUE = '#2868b0', RED = '#c43c51';
 const STATE_NAMES: Record<string, string> = {
  AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',
- DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',
+ DC:'District of Columbia',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',
  IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',
  MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',
  NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',
@@ -279,7 +279,7 @@ export default function App(){
   if(view==='overview'){
    return [
     {eyebrow:'2024 PRESIDENTIAL · HISTORICAL',title:place.state?winner(place.state):'State-by-state winners',body:place.state?'FEC statewide popular-vote result, not a 2026 Senate or House result.':'Select a state to explore a dated national voting baseline.'},
-    {eyebrow:'2026 · U.S. CONGRESS',title:contests.length?contests.length+' published contests':'Verified contests pending',body:'U.S. Senate races are statewide only when a seat is on the ballot. House races are congressional-district based.'},
+    {eyebrow:'2026 · U.S. CONGRESS',title:contests.length?contests.length+' published contests':'Verified contests pending',body:'U.S. Senate races are statewide only when a seat is on the ballot. D.C. has no senators; its House delegate is nonvoting on final House passage.'},
     {eyebrow:'WHAT CHANGED HERE?',title:events.length?events.length+' sourced developments':'Local coverage being built',body:'Verified developments will connect documented actions, officials, original records and reviewed promise comparisons.'}
    ];
   }
@@ -313,7 +313,7 @@ export default function App(){
      <div className="map-controls"><label htmlFor="states">Find a state</label><select id="states" value={place.state||''} onChange={e=>chooseState(e.target.value||null)}><option value="">United States</option>{STATES.map(code=><option value={code} key={code}>{STATE_NAMES[code]}</option>)}</select>{!!place.state&&<><label htmlFor="counties">County</label><select id="counties" value={place.county||''} onChange={e=>chooseCounty(e.target.value||null)} disabled={!stateCounties.length}><option value="">All counties</option>{stateCounties.map(f=><option key={String(f.properties?.GEOID)} value={String(f.properties?.GEOID)}>{nameOf(f)}</option>)}</select></>}</div>
      <div className="legend"><div><b>{layer==='baseline'?'2024 Presidential · statewide popular vote':'Neutral geography'}</b><button onClick={()=>setLayer(layer==='baseline'?'neutral':'baseline')}>{layer==='baseline'?'Hide election colors':'Show 2024 winners'}</button></div>{layer==='baseline'&&<div className="legend-items"><span><i className="swatch red"/>Trump / Republican</span><span><i className="swatch blue"/>Harris / Democratic</span><small>No county lean implied. Maine/Nebraska can split electoral votes.</small><a href="https://www.fec.gov/resources/cms-content/documents/2024presgeresults.pdf" target="_blank" rel="noopener noreferrer">FEC results ↗</a></div>}</div>
     </div>
-    <aside className="summary"><span className="eyebrow">ABB / YOUR GEOGRAPHY</span><h2>{currentName}</h2><p>{place.county?'County selected. See state-level elections and any published local developments. House district intersections are not yet available.':place.state?'County boundaries and related congressional contests are in view. Choose a county or explore the source-linked context below.':'Select any state to focus the map and the entire civic report.'}</p>
+    <aside className="summary"><span className="eyebrow">ABB / YOUR GEOGRAPHY</span><h2>{currentName}</h2><p>{place.county?'County selected. See state-level elections and any published local developments. House district intersections are not yet available.':place.state?(place.state==='DC'?'Washington, D.C. has no U.S. senators and is represented by a nonvoting House delegate.':'County boundaries and related congressional contests are in view. Choose a county or explore the source-linked context below.'):'Select any state to focus the map and the entire civic report.'}</p>
      {place.state&&<div className="winner"><small>HISTORICAL BASELINE · 2024</small><strong>{winner(place.state)}</strong><span>Statewide presidential popular-vote winner</span></div>}
      <div className="summary-line"><span>2026 congressional contests</span><strong>{contests.length?contests.length+' published':'Not yet published'}</strong></div>
      <div className="summary-line"><span>Verified civic developments</span><strong>{events.length||'No published entries'}</strong></div>
