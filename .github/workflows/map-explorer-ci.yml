@@ -1,0 +1,32 @@
+name: React Map Explorer Build
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/map-explorer/**'
+      - '.github/workflows/map-explorer-ci.yml'
+  pull_request:
+    paths:
+      - 'apps/map-explorer/**'
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/map-explorer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: abb-react-map-preview
+          path: apps/map-explorer/dist
+          if-no-files-found: error
+          retention-days: 7
