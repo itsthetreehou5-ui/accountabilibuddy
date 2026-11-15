@@ -223,3 +223,21 @@ test('kinetic geographical focus respects interaction and reduced motion',async(
  assert.match(h,/function controlledZoom/);
  assert.match(h,/prefers-reduced-motion:reduce/);
 });
+
+test('redundant lower Big Board is not visible on the live homepage',async()=>{
+ const r=await worker.fetch(req('/'),{});
+ const html=await r.text();
+ assert.doesNotMatch(html,/THE BIG BOARD \/ INTERACTIVE MAP/);
+ assert.match(html,/id="board" hidden aria-hidden="true"/);
+ assert.match(html,/id="hero-explorer"/);
+});
+test('national geometry query fails clearly if Census source is not available',async()=>{
+ const previous=globalThis.fetch;
+ globalThis.fetch=async()=>new Response(JSON.stringify({type:'FeatureCollection',features:[]}),{status:200,headers:{'Content-Type':'application/json'}});
+ try{
+  const r=await worker.fetch(req('/api/geography/states'),{});
+  assert.equal(r.status,503);
+  const result=await r.json();
+  assert.equal(result.verified_states_available,false);
+ }finally{globalThis.fetch=previous}
+});
