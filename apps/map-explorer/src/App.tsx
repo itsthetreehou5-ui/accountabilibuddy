@@ -114,7 +114,6 @@ export default function App(){
  const stateRef=useRef<GeoCollection>(EMPTY);
  const countyRef=useRef<GeoCollection>(EMPTY);
  const selectionRef=useRef(place);
- const suppressClick=useRef(false);
  const setGeography=useCallback((next:Place,updateHistory=true)=>{
   selectionRef.current=next;
   setPlace(next);
@@ -166,7 +165,7 @@ export default function App(){
   setCountyName(feature?nameOf(feature):'');
  },[place.county,counties]);
  const chooseState=useCallback((state:string|null)=>{
-  suppressClick.current=false;setView('overview');setGeography({state,county:null});
+  setView('overview');setGeography({state,county:null});
  },[setGeography]);
  const chooseCounty=useCallback((county:string|null)=>{
   setView('overview');setGeography({state:selectionRef.current.state,county});
@@ -198,17 +197,19 @@ export default function App(){
    map.addLayer({id:'abb-county-fills',type:'fill',source:'abb-counties',paint:{'fill-color':'#a0bacf','fill-opacity':.68}});
    map.addLayer({id:'abb-county-borders',type:'line',source:'abb-counties',paint:{'line-color':'#ffffff','line-width':1.35}});
    map.addLayer({id:'abb-county-selected',type:'line',source:'abb-counties',filter:['==',['get','GEOID'],'__none__'],paint:{'line-color':'#102e4a','line-width':3.8}});
+   // County polygons overlay states; only the most specific geographic level should respond.
    map.on('click','abb-state-fills',e=>{
-    if(suppressClick.current)return;
+    const countyVisible=!!selectionRef.current.state && map.getLayoutProperty('abb-county-fills','visibility')!=='none';
+    if(countyVisible){
+     const hits=map.queryRenderedFeatures(e.point,{layers:['abb-county-fills']});
+     if(hits.some(f=>/^\d{5}$/.test(String(f.properties?.GEOID||''))))return;
+    }
     const f=e.features?.[0],code=f?.properties?.STUSPS;
     if(typeof code==='string'&&Object.hasOwn(STATE_NAMES,code))chooseState(code);
    });
    map.on('click','abb-county-fills',e=>{
-    const f=e.features?.[0],geoid=f?.properties?.GEOID;
-    if(geoid&&/^\d{5}$/.test(String(geoid))){
-     suppressClick.current=true;chooseCounty(String(geoid));
-     queueMicrotask(()=>{suppressClick.current=false});
-    }
+    const f=e.features?.[0],geoid=String(f?.properties?.GEOID||'');
+    if(/^\d{5}$/.test(geoid))chooseCounty(geoid);
    });
    ['abb-state-fills','abb-county-fills'].forEach(layerName=>{
     map.on('mouseenter',layerName,()=>{map.getCanvas().style.cursor='pointer'});
