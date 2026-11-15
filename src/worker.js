@@ -71,7 +71,7 @@ else if(u.pathname==='/api/elections/contests'){
  }catch{response=json({error:'election_data_temporarily_unavailable'},503)}
 }
 else if(u.pathname==='/api/geography/states'){
- const validCodes=new Set('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split(' '));
+ const validCodes=new Set('AL AK AZ AR CA CO CT DC DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split(' '));
  const cacheKey=new Request('https://abb-geography.internal/states/2026-v1');
  const cache=typeof caches!=='undefined'&&caches.default?caches.default:null;
  let cached=cache?await cache.match(cacheKey):null;
@@ -88,7 +88,7 @@ else if(u.pathname==='/api/geography/states'){
    if(!f?.geometry||!validCodes.has(code)||seen.has(code))return false;
    seen.add(code);return true;
   }).map(f=>({...f,properties:{...f.properties,STUSPS:f.properties.STUSAB}}));
-  if(features.length!==50)throw Error('incomplete_state_collection');
+  if(features.length!==51)throw Error('incomplete_state_collection');
   response=new Response(JSON.stringify({type:'FeatureCollection',features,source:'U.S. Census Bureau TIGERweb January 1 2026 state boundaries',results_status:'geography_only_not_election_results'}),{headers:{'Content-Type':'application/geo+json; charset=utf-8','Cache-Control':'public, max-age=21600'}});
   if(cache)ctx?.waitUntil?.(cache.put(cacheKey,response.clone()));
  }catch{response=json({error:'state_geography_temporarily_unavailable',verified_states_available:false},503)}
