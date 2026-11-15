@@ -2,11 +2,13 @@
 
 **Democracy has receipts.**
 
+**Public-facing working name:** ABB (Accountabilibuddy remains the repo/project name).
+
 A nonpartisan civic intelligence platform designed to connect official congressional records, election commitments, legislation, geographically accurate representation, independent reporting, and moderated community context through visual storytelling.
 
 ## Current status — infrastructure preview
 
-The public foundation Worker exists, and the U.S.-jurisdiction D1 schema and private R2 evidence bucket are provisioned. **No verified congressional records have been ingested yet. No public editing and no admin login are enabled.**
+The public foundation Worker exists, and the U.S.-jurisdiction D1 schema and private R2 evidence bucket are provisioned. **No verified congressional records have been ingested yet. The interactive map uses an early preview state GeoJSON geometry; it is not a district lookup and should be replaced with official Census boundary data before production. No public editing and no admin login are enabled.**
 
 ## Project principles
 
@@ -21,7 +23,9 @@ The public foundation Worker exists, and the U.S.-jurisdiction D1 schema and pri
 
 ## Architecture
 
-- **Application:** Cloudflare Worker (`src/worker.js`), read-only public foundation.
+- **Application:** Cloudflare Worker (`src/worker.js`), NBC/CNN/AP-influenced broadcast-editorial experience with a working 50-state geographic map, state zoom, layer controls, depth tabs, preview explanations, offline shell and downloadable *explicitly incomplete* public export.
+- **Read-only data APIs:** `/api/public/officials`, `/api/public/coverage`, `/api/public/export`, `/api/transparency`; only editorially published official records can appear.
+- **Private PRIM bridge:** service-binding RPC to `prm-runtime-staging`, health check only; no PRM mutations or production integration.
 - **Relational storage:** D1 `accountabilibuddy-core` (SQL migrations in `database/`). Future move to PostgreSQL + Hyperdrive when scale and write patterns justify it.
 - **Private archives:** R2 `accountabilibuddy-evidence-private`.
 - **Tests:** Node's built-in test runner and GitHub Actions checks.
@@ -39,7 +43,7 @@ npm test
 
 The goal is to be more independently inspectable than conventional news aggregation: original references, evidence manifests, published corrections, ingestion timelines, moderation decisions, and known limitations. That's a design goal, **not a currently verified claim of superior accuracy**.
 
-Read [architecture](docs/architecture.md) and [security](SECURITY.md).
+Read [architecture](docs/architecture.md), [ABB design direction](docs/DESIGN-SYSTEM.md), [PRIM integration](docs/PRM-INTEGRATION.md), [release gates](docs/RELEASE-CHECKLIST.md) and [security](SECURITY.md).
 
 ## Next milestones
 
