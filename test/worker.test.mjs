@@ -181,3 +181,21 @@ test('contextual summary can be shown without scrolling through an unreviewed ne
  assert.match(h,/function loadLocalEvents/);
  assert.match(h,/No reviewed local developments have been published/);
 });
+
+test('event detail requires a published source-backed record',async()=>{
+ const db={prepare(sql){assert.match(sql,/reported_status='published'/);assert.match(sql,/published_version_id IS NOT NULL/);return{bind(id){assert.equal(id,'event_123');return{first:async()=>null}}}}};
+ const result=await worker.fetch(req('/api/public/events/event_123'),{DB:db});
+ assert.equal(result.status,404);
+});
+test('event detail rejects malformed identifiers and public writes',async()=>{
+ assert.equal((await worker.fetch(req('/api/public/events/%3Cscript%3E'),{})).status,400);
+ assert.equal((await worker.fetch(req('/api/public/events/event_123','POST'),{})).status,405);
+});
+test('context UI opens a source-backed action trail',async()=>{
+ const result=await worker.fetch(req('/'),{});
+ const html=await result.text();
+ assert.match(html,/function openEventTrail/);
+ assert.match(html,/Who took which action/);
+ assert.match(html,/Prior commitments and alignment review/);
+ assert.match(html,/id="local-signals"/);
+});
