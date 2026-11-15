@@ -7,6 +7,28 @@ if(u.pathname.startsWith('/admin')||u.pathname.startsWith('/internal')||u.pathna
 else if(method!=='GET'&&method!=='HEAD')response=json({error:'method_not_allowed'},405);
 else if(u.pathname==='/api/health')response=json({status:'ok',service:'accountabilibuddy',phase:'interactive-preview'});
 else if(u.pathname==='/api/integrations/status'){let connected=false;try{if(env.PRM&&typeof env.PRM.health==='function'){const health=await env.PRM.health();connected=health?.ok===true}}catch{}response=json({prm:{connected,mode:'read-only staging service binding',mutations_enabled:false},public_edition:'ABB preview'});}
+else if(u.pathname==='/api/public/officials'){
+  const state=(u.searchParams.get('state')||'').toUpperCase();
+  if(state&&!/^[A-Z]{2}$/.test(state))response=json({error:'invalid_state_code'},400);
+  else if(!env.DB)response=json({error:'database_unavailable'},503);
+  else try{
+    const q="SELECT o.id,o.name,o.chamber,o.state_code,o.district,o.start_date,o.end_date FROM officials o WHERE EXISTS (SELECT 1 FROM publication_versions v WHERE v.entity_type='official' AND v.entity_id=o.id)"+(state?" AND o.state_code=?":"")+" ORDER BY o.state_code,o.chamber,o.name LIMIT 100";
+    const result=state?await env.DB.prepare(q).bind(state).all():await env.DB.prepare(q).all();
+    response=json({status:'ok',verified_only:true,filters:{state:state||null},items:result.results||[],note:'Only records in the reviewed publication ledger are returned.'});
+  }catch{response=json({error:'data_temporarily_unavailable'},503)}
+}
+else if(u.pathname==='/api/public/coverage'){
+  if(!env.DB)response=json({error:'database_unavailable'},503);
+  else try{
+    const [source,verified,corrections,runs]=await Promise.all([
+      env.DB.prepare('SELECT COUNT(*) AS n FROM sources').first(),
+      env.DB.prepare("SELECT COUNT(DISTINCT entity_id) AS n FROM publication_versions WHERE entity_type='official'").first(),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM public_corrections').first(),
+      env.DB.prepare('SELECT provider,status,started_at,finished_at FROM ingestion_runs ORDER BY started_at DESC LIMIT 15').all()
+    ]);
+    response=json({status:'prelaunch',source_count:source?.n||0,verified_official_count:verified?.n||0,correction_count:corrections?.n||0,recent_ingestion_runs:runs.results||[],coverage_complete:false,methodology_version:'foundation-0.1',note:'Counts describe only data present in ABB; they do not imply nationwide verified coverage.'});
+  }catch{response=json({error:'data_temporarily_unavailable'},503)}
+}
 else if(u.pathname==='/api/transparency')response=json({status:'prelaunch',verified_records_available:false,community_notes_published:false,read_only_public_api:true,source_policy:'primary records preferred; original sources required',correction_policy:'historical corrections and reviewer decisions must be auditable',data_freshness:'not yet populated',known_gaps:['live legislative ingestion','district locator','independent moderation','public audit export']});
 else if(u.pathname==='/manifest.webmanifest')response=new Response(JSON.stringify({name:'ABB — Accountabilibuddy',short_name:'ABB',start_url:'/',display:'standalone',background_color:'#09121e',theme_color:'#101b2b',icons:[]}),{headers:{'Content-Type':'application/manifest+json','Cache-Control':'public, max-age=3600'}});
 else if(u.pathname==='/sw.js')response=new Response(sw,{headers:{'Content-Type':'application/javascript','Cache-Control':'no-cache','Service-Worker-Allowed':'/'}});
