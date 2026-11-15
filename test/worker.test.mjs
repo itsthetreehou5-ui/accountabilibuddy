@@ -74,3 +74,17 @@ test('public export admits incomplete coverage',async()=>{
   assert.deepEqual(j.records,[]);
   assert.match(r.headers.get('content-disposition'),/attachment/);
 });
+
+test('editorial redesign and interactive data journalism previews render',async()=>{
+  const r=await worker.fetch(req('/'),{});
+  const html=await r.text();
+  assert.match(html,/id="visualizations"/);
+  assert.match(html,/id="viz-tabs"/);
+  assert.match(html,/data-viz="seats"/);
+  assert.match(html,/data-viz="timeline"/);
+  assert.match(html,/data-viz="network"/);
+  assert.match(html,/data-layer="representation"/);
+  assert.match(html,/id="us-map"/);
+  assert.match(html,/100 U\.S\. Senate seats/);
+  assert.match(html,/not live results/);
+});
