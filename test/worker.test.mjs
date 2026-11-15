@@ -6,3 +6,45 @@ test('public preview is accessible with security headers',async()=>{const r=awai
 test('privileged paths are denied',async()=>{for(const p of ['/admin','/admin/users','/internal','/api/admin/claims']){const r=await worker.fetch(req(p),{});assert.equal(r.status,404)}});
 test('public mutations are denied',async()=>{for(const p of ['/','/api/transparency','/api/health']){const r=await worker.fetch(req(p,'POST'),{});assert.equal(r.status,405)}});
 test('transparency marks live data as not populated',async()=>{const r=await worker.fetch(req('/api/transparency'),{});const j=await r.json();assert.equal(j.verified_records_available,false);assert.equal(j.community_notes_published,false)});
+
+test('national map and ABB identity are rendered',async()=>{
+  const r=await worker.fetch(req('/'),{});
+  const html=await r.text();
+  assert.match(html,/ABB/);
+  assert.match(html,/id="us-map"/);
+  assert.match(html,/data-code="NM"/);
+  assert.match(html,/data-code="CA"/);
+  assert.match(html,/prefers-reduced-motion:reduce/);
+});
+test('public data API never accepts writes',async()=>{
+  for(const p of ['/api/public/officials','/api/public/coverage','/api/integrations/status']){
+    const r=await worker.fetch(req(p,'POST'),{});
+    assert.equal(r.status,405,p);
+  }
+});
+test('unreviewed officials cannot appear in published data API',async()=>{
+  const db={prepare(sql){assert.match(sql,/publication_versions/);return {all:async()=>({results:[]})}}};
+  const r=await worker.fetch(req('/api/public/officials'),{DB:db});
+  const result=await r.json();
+  assert.equal(r.status,200);
+  assert.equal(result.verified_only,true);
+  assert.deepEqual(result.items,[]);
+});
+test('state filters are validated',async()=>{
+  const r=await worker.fetch(req('/api/public/officials?state=UNKNOWN'),{DB:{}});
+  assert.equal(r.status,400);
+});
+test('PRM integration can degrade without disrupting ABB',async()=>{
+  const r=await worker.fetch(req('/api/integrations/status'),{PRM:{health:async()=>{throw Error('staging unavailable')}}});
+  const j=await r.json();
+  assert.equal(r.status,200);
+  assert.equal(j.prm.connected,false);
+  assert.equal(j.prm.mutations_enabled,false);
+});
+test('coverage API does not invent national coverage',async()=>{
+  const db={prepare(){return {first:async()=>({n:0}),all:async()=>({results:[]})}}};
+  const r=await worker.fetch(req('/api/public/coverage'),{DB:db});
+  const j=await r.json();
+  assert.equal(j.verified_official_count,0);
+  assert.equal(j.coverage_complete,false);
+});
