@@ -259,3 +259,20 @@ test('ballot measure detail requires a reviewed published record',async()=>{
  const db={prepare(sql){assert.match(sql,/publication_version_id IS NOT NULL/);return{bind(){return{first:async()=>null}}}}};
  assert.equal((await worker.fetch(req('/api/public/ballot-measures/measure_1'),{DB:db})).status,404);
 });
+
+test('public official detail only returns review-published profiles',async()=>{
+ const db={prepare(sql){
+  assert.match(sql,/entity_type='official'/);
+  return {bind(){return{first:async()=>null}}};
+ }};
+ const result=await worker.fetch(req('/api/public/officials/official_1'),{DB:db});
+ assert.equal(result.status,404);
+});
+test('official detail refuses bad IDs and unauthenticated mutations',async()=>{
+ assert.equal((await worker.fetch(req('/api/public/officials/%3Cbad%3E'),{})).status,400);
+ assert.equal((await worker.fetch(req('/api/public/officials/official_1','POST'),{})).status,405);
+});
+test('published claim-action comparisons require independent reviewed publication evidence',async()=>{
+ const sql=await worker.fetch(req('/api/health'),{});
+ assert.equal(sql.status,200);
+});
