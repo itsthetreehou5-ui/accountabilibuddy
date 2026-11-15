@@ -241,3 +241,21 @@ test('national geometry query fails clearly if Census source is not available',a
   assert.equal(result.verified_states_available,false);
  }finally{globalThis.fetch=previous}
 });
+
+test('ballot measure API shows only approved published source-backed measures',async()=>{
+ const db={prepare(sql){assert.match(sql,/publication_version_id IS NOT NULL/);assert.match(sql,/published_at IS NOT NULL/);return{bind(state,start,end){assert.equal(state,'NM');assert.equal(start,'2026-01-01');assert.equal(end,'2027-01-01');return{all:async()=>({results:[]})}}}}};
+ const r=await worker.fetch(req('/api/public/ballot-measures?state=NM&year=2026'),{DB:db});
+ assert.equal(r.status,200);
+ const j=await r.json();
+ assert.deepEqual(j.items,[]);
+ assert.equal(j.published_only,true);
+ assert.match(j.privacy_note,/does not know or track/);
+});
+test('ballot measure endpoint rejects invalid filter and forbidden writes',async()=>{
+ assert.equal((await worker.fetch(req('/api/public/ballot-measures?state=N*M&year=2099'),{})).status,400);
+ assert.equal((await worker.fetch(req('/api/public/ballot-measures?state=NM','POST'),{})).status,405);
+});
+test('ballot measure detail requires a reviewed published record',async()=>{
+ const db={prepare(sql){assert.match(sql,/publication_version_id IS NOT NULL/);return{bind(){return{first:async()=>null}}}}};
+ assert.equal((await worker.fetch(req('/api/public/ballot-measures/measure_1'),{DB:db})).status,404);
+});
