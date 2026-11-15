@@ -111,3 +111,31 @@ test('map interactions smoothly interpolate and honor reduced motion',async()=>{
  assert.match(html,/targetViewport\(heroMap,active,2\.5\)/);
  assert.match(html,/ABB warm editorial system/);
 });
+
+test('county geography requires an allowable state and never guesses election lean',async()=>{
+ const invalid=await worker.fetch(req('/api/geography/counties?state=XX'),{});
+ assert.equal(invalid.status,400);
+ const page=await worker.fetch(req('/'),{});
+ const h=await page.text();
+ assert.match(h,/function renderCounties/);
+ assert.match(h,/data-race="senate"/);
+ assert.match(h,/data-race="house"/);
+ assert.match(h,/results_status:'geography_only_not_election_results'/);
+ assert.match(h,/County lean will appear only with verified results/);
+});
+test('Census county geometry is filtered to selected state',async()=>{
+ const prior=globalThis.fetch;
+ const response={type:'FeatureCollection',features:[
+  {type:'Feature',properties:{GEOID:'35001',NAME:'Bernalillo',STATE:'35'},geometry:{type:'Polygon',coordinates:[[[-106.8,35],[-106.5,35],[-106.5,35.2],[-106.8,35]]]}},
+  {type:'Feature',properties:{GEOID:'06001',NAME:'Alameda',STATE:'06'},geometry:{type:'Polygon',coordinates:[[[-122.4,37.7],[-122.1,37.7],[-122.1,37.9],[-122.4,37.7]]]}}
+ ]};
+ globalThis.fetch=async()=>new Response(JSON.stringify(response),{status:200,headers:{'Content-Type':'application/geo+json'}});
+ try{
+  const r=await worker.fetch(req('/api/geography/counties?state=NM'),{});
+  assert.equal(r.status,200);
+  const body=await r.json();
+  assert.equal(body.results_status,'geography_only_not_election_results');
+  assert.equal(body.features.length,1);
+  assert.equal(body.features[0].properties.GEOID,'35001');
+ }finally{globalThis.fetch=prior}
+});
