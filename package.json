@@ -1,0 +1,12 @@
+{
+  "name": "accountabilibuddy",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Nonpartisan civic intelligence infrastructure preview",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/worker.js",
+    "build": "npm run check"
+  }
+}
