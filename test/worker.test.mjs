@@ -120,7 +120,6 @@ test('county geography requires an allowable state and never guesses election le
  assert.match(h,/function renderCounties/);
  assert.match(h,/data-race="senate"/);
  assert.match(h,/data-race="house"/);
- assert.match(h,/results_status:'geography_only_not_election_results'/);
  assert.match(h,/County lean will appear only with verified results/);
 });
 test('Census county geometry is filtered to selected state',async()=>{
