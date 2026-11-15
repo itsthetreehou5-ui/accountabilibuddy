@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from 'maplibre-gl';
+import maplibregl, { type GeoJSONSource, type Map as MapLibreMap, type ExpressionSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Feature, FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
 
@@ -48,7 +48,7 @@ function stateCode(feature: Feature):string{
  return String(feature.properties?.STUSPS || feature.properties?.STATE_ABBR || feature.properties?.USPS || '').toUpperCase();
 }
 function flattenGeometry(geometry:Geometry, callback:(lon:number,lat:number)=>void){
- if(!('coordinates' in geometry)) return;
+ if(!geometry || !('coordinates' in geometry)) return;
  const walk=(item:unknown):void=>{
   if(!Array.isArray(item))return;
   if(item.length>=2 && typeof item[0]==='number' && typeof item[1]==='number'){
@@ -182,7 +182,7 @@ export default function App(){
   map.on('load',()=>{
    map.addSource('abb-states',{type:'geojson',data:stateRef.current,promoteId:'STUSPS'});
    map.addLayer({id:'abb-state-fills',type:'fill',source:'abb-states',paint:{
-    'fill-color':['match',['get','STUSPS'],...STATES.flatMap(code=>[code,DEM_2024.has(code)?BLUE:RED]),'#ced9e2'] as unknown as maplibregl.ExpressionSpecification,
+    'fill-color':['match',['get','STUSPS'],...STATES.flatMap(code=>[code,DEM_2024.has(code)?BLUE:RED]),'#ced9e2'] as unknown as ExpressionSpecification,
     'fill-opacity':.68
    }});
    map.addLayer({id:'abb-state-borders',type:'line',source:'abb-states',paint:{'line-color':'#ffffff','line-width':1.5}});
@@ -226,7 +226,7 @@ export default function App(){
  },[counties]);
  useEffect(()=>{
   const map=mapRef.current;if(!map||!map.getLayer('abb-state-fills'))return;
-  const filled:maplibregl.ExpressionSpecification=['match',['get','STUSPS'],...STATES.flatMap(code=>[code,layer==='baseline'?(DEM_2024.has(code)?BLUE:RED):'#94abc0']),'#d2dce5'] as unknown as maplibregl.ExpressionSpecification;
+  const filled:ExpressionSpecification=['match',['get','STUSPS'],...STATES.flatMap(code=>[code,layer==='baseline'?(DEM_2024.has(code)?BLUE:RED):'#94abc0']),'#d2dce5'] as unknown as maplibregl.ExpressionSpecification;
   map.setPaintProperty('abb-state-fills','fill-color',filled);
  },[layer,states]);
  useEffect(()=>{
@@ -277,7 +277,7 @@ export default function App(){
     <div className="map-pane">
      <div className="top-controls"><div className="crumb"><button onClick={()=>chooseState(null)}>United States</button>{place.state&&<><span>›</span><button onClick={()=>chooseCounty(null)}>{stateName}</button></>}{place.county&&<><span>›</span><strong>{countyName||place.county}</strong></>}</div><div className="nav-buttons"><button disabled={!place.state} onClick={goBack}>← Back</button><button onClick={()=>chooseState(null)}>⌂ Nation</button></div></div>
      <div ref={mapContainer} className="map" role="region" aria-label="Interactive national civic map"/>
-     {mapError&&<div className="map-error" role="status">{mapError}</div>}
+     {mapError&&<div className="map-error" role="status">{mapError}</div>}{dataState==='loading'&&<div className="map-loading" role="status">Loading official state boundaries…</div>}
      <div className="map-overlay"><span>{place.county?'COUNTY VIEW':place.state?'STATE VIEW':'NATIONAL VIEW'}</span><strong>{currentName}</strong></div>
      <div className="map-controls"><label htmlFor="states">Find a state</label><select id="states" value={place.state||''} onChange={e=>chooseState(e.target.value||null)}><option value="">United States</option>{STATES.map(code=><option value={code} key={code}>{STATE_NAMES[code]}</option>)}</select>{!!place.state&&<><label htmlFor="counties">County</label><select id="counties" value={place.county||''} onChange={e=>chooseCounty(e.target.value||null)} disabled={!stateCounties.length}><option value="">All counties</option>{stateCounties.map(f=><option key={String(f.properties?.GEOID)} value={String(f.properties?.GEOID)}>{nameOf(f)}</option>)}</select></>}</div>
      <div className="legend"><div><b>{layer==='baseline'?'2024 Presidential · statewide popular vote':'Neutral geography'}</b><button onClick={()=>setLayer(layer==='baseline'?'neutral':'baseline')}>{layer==='baseline'?'Hide election colors':'Show 2024 winners'}</button></div>{layer==='baseline'&&<div className="legend-items"><span><i className="swatch red"/>Trump / Republican</span><span><i className="swatch blue"/>Harris / Democratic</span><small>No county lean implied. Maine/Nebraska can split electoral votes.</small><a href="https://www.fec.gov/resources/cms-content/documents/2024presgeresults.pdf" target="_blank" rel="noopener noreferrer">FEC results ↗</a></div>}</div>
