@@ -10,6 +10,11 @@ type Place = { state: string | null; county: string | null };
 type PublishedContest = { id: string; office: 'us_senate' | 'us_house'; district: string | null; result_status: string; election_date: string };
 type EventRecord = { id: string; headline: string; summary: string; happened_at: string; event_kind: string; source_url?: string };
 type BallotMeasure = {id:string;designation:string;title:string;election_date:string;outcome:string;outcome_status:string;legal_status:string;source_url?:string};
+type Official = {id:string;name:string;chamber:string;state_code:string;district:string|null;start_date?:string;end_date?:string};
+type SourcedStatement = {id:string;statement:string;stated_at:string|null;source_url:string;source_title:string};
+type SourcedAction = {id:string;kind:string;occurred_at:string;summary:string;source_url:string;source_title:string};
+type ReviewedRelationship = {claim_id:string;action_id:string;relationship:string;rationale:string};
+type OfficialReport = {official:Official;claims:SourcedStatement[];actions:SourcedAction[];reviewed_relationships:ReviewedRelationship[];complete:boolean};
 type View = 'overview' | 'ballot' | 'races' | 'timeline' | 'accountability' | 'sources';
 type Audience = 'simple' | 'explore' | 'research';
 const EMPTY: GeoCollection = { type: 'FeatureCollection', features: [] };
@@ -100,6 +105,10 @@ export default function App(){
  const [contests,setContests]=useState<PublishedContest[]>([]);
  const [events,setEvents]=useState<EventRecord[]>([]);
  const [ballotYear,setBallotYear]=useState('2026');
+ const [officials,setOfficials]=useState<Official[]>([]);
+ const [chosenOfficial,setChosenOfficial]=useState('');
+ const [officialReport,setOfficialReport]=useState<OfficialReport|null>(null);
+ const [officialCoverage,setOfficialCoverage]=useState<'idle'|'loading'|'ready'|'unavailable'>('idle');
  const [measures,setMeasures]=useState<BallotMeasure[]>([]);
  const [ballotCoverage,setBallotCoverage]=useState<'idle'|'loading'|'ready'|'unavailable'>('idle');
  const [countyName,setCountyName]=useState('');
@@ -271,6 +280,25 @@ export default function App(){
    .catch(e=>{if(e.name!=='AbortError'){setMeasures([]);setBallotCoverage('unavailable')}});
   return ()=>controller.abort();
  },[place.state,ballotYear]);
+ useEffect(()=>{
+  setOfficials([]);setChosenOfficial('');setOfficialReport(null);
+  if(!place.state){setOfficialCoverage('idle');return}
+  setOfficialCoverage('loading');
+  const controller=new AbortController();
+  json<{items:Official[]}>('/api/public/officials?state='+place.state,controller.signal)
+   .then(data=>{if(!controller.signal.aborted){setOfficials(data.items||[]);setOfficialCoverage('ready')}})
+   .catch(e=>{if(e.name!=='AbortError'){setOfficialCoverage('unavailable')}});
+  return ()=>controller.abort();
+ },[place.state]);
+ useEffect(()=>{
+  setOfficialReport(null);
+  if(!chosenOfficial)return;
+  const controller=new AbortController();
+  json<OfficialReport>('/api/public/officials/'+encodeURIComponent(chosenOfficial),controller.signal)
+   .then(data=>{if(!controller.signal.aborted)setOfficialReport(data)})
+   .catch(()=>{if(!controller.signal.aborted)setOfficialReport(null)});
+  return ()=>controller.abort();
+ },[chosenOfficial]);
  const currentName=label(place,countyName);
  const stateName=place.state?STATE_NAMES[place.state]:'';
  const stateCounties=useMemo(()=>counties.features.filter(f=>f.properties?.GEOID).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))),[counties]);
@@ -325,6 +353,20 @@ export default function App(){
    </div>
    <section className="context"><div className="context-header"><div><span className="eyebrow">CONTEXT IN ONE PLACE</span><h2>{place.state?'Inside '+currentName:'The story behind the map'}</h2></div><div className="tabs" aria-label="Explore the selected location">{([['overview','At a glance'],['ballot','My ballot'],['races','Races'],['timeline','Timeline'],['accountability','Promises & actions'],['sources','Receipts']] as [View,string][]).map(([id,label])=><button key={id} aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</div></div>
     {view==='ballot'&&<div className="ballot-filters"><label htmlFor="ballot-year">Election year</label><select id="ballot-year" value={ballotYear} onChange={e=>setBallotYear(e.target.value)}>{['2026','2024','2022','2020','2018'].map(year=><option key={year} value={year}>{year}</option>)}</select><span>Select a state on the map to scope publicly published ballot measures. ABB cannot see how you voted.</span></div>}<div className="context-intro" role="status">{audience==='simple'?'Plain-language overview. Terms explained; no assumption that you already know the process.':audience==='explore'?'Follow developments, compare officials’ actions, and keep the selected geography in view.':'Evidence-focused view. Published records only; data gaps and dates are explicit.'}</div><div className="context-grid">{cards.map(c=><article className="context-card" key={c.eyebrow}><small>{c.eyebrow}</small><h3>{c.title}</h3><p>{c.body}</p></article>)}</div>
+    {view==='accountability'&&<section className="officials-search" aria-label="Compare an official's documented statements and actions">
+     <div className="officials-search-head"><div><strong>Who said it? What did they do?</strong><p>Choose a state and a published official. Statements and recorded actions are shown separately, with original sources. Reviewed comparisons appear only when independently verified.</p></div><div><label htmlFor="official-select">Published officials</label><select id="official-select" disabled={!officials.length} value={chosenOfficial} onChange={e=>setChosenOfficial(e.target.value)}><option value="">{!place.state?'Choose a state first':officialCoverage==='loading'?'Loading published profiles…':officials.length?'Choose an official…':'No profiles published yet'}</option>{officials.map(o=><option value={o.id} key={o.id}>{o.name} · {o.chamber==='senate'?'U.S. Senate':'U.S. House'}</option>)}</select></div></div>
+     {officialCoverage==='unavailable'&&<p className="officials-status" role="status">Published profile lookup is temporarily unavailable. This is not evidence that officials have no records.</p>}
+     {officialCoverage==='ready'&&!officials.length&&<p className="officials-status">ABB has not published verified official dossiers for this state yet. This does not mean the state lacks representatives or legislative activity.</p>}
+     {chosenOfficial&&!officialReport&&<p className="officials-status" role="status">Checking the reviewed statement and action record…</p>}
+     {officialReport&&<div className="official-report">
+      <header><span className="eyebrow">SOURCE-LINKED PROFILE</span><h3>{officialReport.official.name}</h3><p>Published statements and legislative actions; this profile may be incomplete.</p></header>
+      <div className="official-report-columns">
+       <div><h4>What they said</h4>{officialReport.claims.length?officialReport.claims.map(c=><article key={c.id}><small>{c.stated_at||'Date not recorded'}</small><p>{c.statement}</p>{c.source_url?.startsWith('https://')&&<a href={c.source_url} target="_blank" rel="noopener noreferrer">Original statement ↗</a>}</article>):<p className="officials-status">No reviewed statements have been published.</p>}</div>
+       <div><h4>What they did</h4>{officialReport.actions.length?officialReport.actions.map(a=><article key={a.id}><small>{a.occurred_at} · {a.kind.replaceAll('_',' ')}</small><p>{a.summary}</p>{a.source_url?.startsWith('https://')&&<a href={a.source_url} target="_blank" rel="noopener noreferrer">Official action record ↗</a>}</article>):<p className="officials-status">No reviewed actions have been published.</p>}</div>
+      </div>
+      <div className="reviewed-comparisons"><h4>Reviewed connections</h4>{officialReport.reviewed_relationships.length?officialReport.reviewed_relationships.map((link,i)=><p key={link.claim_id+':'+link.action_id+':'+i}><b>{link.relationship.replaceAll('_',' ')}:</b> {link.rationale}</p>):<p>No reviewed statement-to-action comparison has been published. An absent comparison does not mean their positions were consistent.</p>}</div>
+     </div>}
+    </section>}
     {view==='ballot'&&measures.length>0&&<div className="ballot-measures" aria-label="Published ballot measures">{measures.map(measure=><article className="ballot-measure" key={measure.id}><small>{measure.designation} · {measure.election_date} · {measure.outcome_status}</small><strong>{measure.title}</strong><p>Public result: {measure.outcome}. Legal status: {measure.legal_status.replaceAll('_',' ')}.</p>{measure.source_url?.startsWith('https://')&&<a href={measure.source_url} target="_blank" rel="noopener noreferrer">Inspect primary source ↗</a>}</article>)}</div>}
     <p className="methodology">Official Census 2026 geographic boundaries. The red/blue national layer represents the 2024 presidential statewide popular-vote winner, not a 2026 congressional result. No unreviewed news, partisan county lean, or candidate attribution is fabricated.</p>
    </section>
