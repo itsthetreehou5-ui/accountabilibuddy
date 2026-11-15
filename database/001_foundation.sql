@@ -1,0 +1,16 @@
+PRAGMA foreign_keys=ON;
+CREATE TABLE IF NOT EXISTS sources (id TEXT PRIMARY KEY, publisher TEXT NOT NULL, title TEXT NOT NULL, url TEXT NOT NULL, source_type TEXT NOT NULL CHECK(source_type IN ('primary','reporting','analysis','opinion','other')), published_at TEXT, retrieved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, content_hash TEXT, archive_key TEXT, license_note TEXT);
+CREATE TABLE IF NOT EXISTS officials (id TEXT PRIMARY KEY, bioguide_id TEXT UNIQUE, name TEXT NOT NULL, chamber TEXT NOT NULL CHECK(chamber IN ('house','senate')), state_code TEXT NOT NULL, district TEXT, party TEXT, start_date TEXT, end_date TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS claims (id TEXT PRIMARY KEY, official_id TEXT NOT NULL REFERENCES officials(id), statement TEXT NOT NULL, stated_at TEXT, status TEXT NOT NULL DEFAULT 'documented' CHECK(status IN ('documented','under_review','withdrawn')), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS claim_sources (claim_id TEXT NOT NULL REFERENCES claims(id), source_id TEXT NOT NULL REFERENCES sources(id), context TEXT, PRIMARY KEY(claim_id,source_id));
+CREATE TABLE IF NOT EXISTS actions (id TEXT PRIMARY KEY, official_id TEXT NOT NULL REFERENCES officials(id), kind TEXT NOT NULL, external_id TEXT, occurred_at TEXT NOT NULL, summary TEXT NOT NULL, source_id TEXT NOT NULL REFERENCES sources(id));
+CREATE TABLE IF NOT EXISTS claim_action_links (claim_id TEXT NOT NULL REFERENCES claims(id), action_id TEXT NOT NULL REFERENCES actions(id), relationship TEXT NOT NULL CHECK(relationship IN ('related','supports','contradicts','unclear')), rationale TEXT NOT NULL, PRIMARY KEY(claim_id,action_id));
+CREATE TABLE IF NOT EXISTS submissions (id TEXT PRIMARY KEY, submitter_id TEXT NOT NULL, kind TEXT NOT NULL, payload_json TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','in_review','accepted','rejected','withdrawn')), submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, reviewed_at TEXT);
+CREATE TABLE IF NOT EXISTS review_decisions (id TEXT PRIMARY KEY, submission_id TEXT NOT NULL REFERENCES submissions(id), reviewer_id TEXT NOT NULL, decision TEXT NOT NULL, explanation TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, action TEXT NOT NULL, object_type TEXT NOT NULL, object_id TEXT NOT NULL, before_hash TEXT, after_hash TEXT, reason TEXT, occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS ingestion_runs (id TEXT PRIMARY KEY, provider TEXT NOT NULL, status TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, record_count INTEGER NOT NULL DEFAULT 0, error_summary TEXT);
+CREATE INDEX IF NOT EXISTS idx_officials_state_chamber ON officials(state_code,chamber);
+CREATE INDEX IF NOT EXISTS idx_claims_official ON claims(official_id);
+CREATE INDEX IF NOT EXISTS idx_actions_official_date ON actions(official_id,occurred_at);
+CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status,submitted_at);
+CREATE INDEX IF NOT EXISTS idx_ingestion_provider ON ingestion_runs(provider,started_at);
