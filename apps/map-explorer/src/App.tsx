@@ -108,6 +108,7 @@ export default function App(){
  const [officials,setOfficials]=useState<Official[]>([]);
  const [chosenOfficial,setChosenOfficial]=useState('');
  const [officialReport,setOfficialReport]=useState<OfficialReport|null>(null);
+ const [officialDetailStatus,setOfficialDetailStatus]=useState<'idle'|'loading'|'ready'|'unavailable'>('idle');
  const [officialCoverage,setOfficialCoverage]=useState<'idle'|'loading'|'ready'|'unavailable'>('idle');
  const [measures,setMeasures]=useState<BallotMeasure[]>([]);
  const [ballotCoverage,setBallotCoverage]=useState<'idle'|'loading'|'ready'|'unavailable'>('idle');
@@ -292,11 +293,12 @@ export default function App(){
  },[place.state]);
  useEffect(()=>{
   setOfficialReport(null);
-  if(!chosenOfficial)return;
+  if(!chosenOfficial){setOfficialDetailStatus('idle');return}
+  setOfficialDetailStatus('loading');
   const controller=new AbortController();
   json<OfficialReport>('/api/public/officials/'+encodeURIComponent(chosenOfficial),controller.signal)
-   .then(data=>{if(!controller.signal.aborted)setOfficialReport(data)})
-   .catch(()=>{if(!controller.signal.aborted)setOfficialReport(null)});
+   .then(data=>{if(!controller.signal.aborted){setOfficialReport(data);setOfficialDetailStatus('ready')}})
+   .catch(e=>{if(e.name!=='AbortError'&&!controller.signal.aborted){setOfficialReport(null);setOfficialDetailStatus('unavailable')}});
   return ()=>controller.abort();
  },[chosenOfficial]);
  const currentName=label(place,countyName);
@@ -357,7 +359,7 @@ export default function App(){
      <div className="officials-search-head"><div><strong>Who said it? What did they do?</strong><p>Choose a state and a published official. Statements and recorded actions are shown separately, with original sources. Reviewed comparisons appear only when independently verified.</p></div><div><label htmlFor="official-select">Published officials</label><select id="official-select" disabled={!officials.length} value={chosenOfficial} onChange={e=>setChosenOfficial(e.target.value)}><option value="">{!place.state?'Choose a state first':officialCoverage==='loading'?'Loading published profiles…':officials.length?'Choose an official…':'No profiles published yet'}</option>{officials.map(o=><option value={o.id} key={o.id}>{o.name} · {o.chamber==='senate'?'U.S. Senate':'U.S. House'}</option>)}</select></div></div>
      {officialCoverage==='unavailable'&&<p className="officials-status" role="status">Published profile lookup is temporarily unavailable. This is not evidence that officials have no records.</p>}
      {officialCoverage==='ready'&&!officials.length&&<p className="officials-status">ABB has not published verified official dossiers for this state yet. This does not mean the state lacks representatives or legislative activity.</p>}
-     {chosenOfficial&&!officialReport&&<p className="officials-status" role="status">Checking the reviewed statement and action record…</p>}
+     {chosenOfficial&&officialDetailStatus==='loading'&&<p className="officials-status" role="status">Checking the reviewed statement and action record…</p>}{chosenOfficial&&officialDetailStatus==='unavailable'&&<p className="officials-status" role="status">This published dossier could not be loaded. No conclusions about this person's voting record can be drawn from the missing response.</p>}
      {officialReport&&<div className="official-report">
       <header><span className="eyebrow">SOURCE-LINKED PROFILE</span><h3>{officialReport.official.name}</h3><p>Published statements and legislative actions; this profile may be incomplete.</p></header>
       <div className="official-report-columns">
