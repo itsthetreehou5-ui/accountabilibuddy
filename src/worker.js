@@ -25,6 +25,30 @@ else if(u.pathname.startsWith('/api/public/events/')){
   }
  }catch{response=json({error:'event_details_temporarily_unavailable'},503)}
 }
+else if(u.pathname==='/api/public/ballot-measures'){
+ const state=(u.searchParams.get('state')||'').toUpperCase();
+ const year=u.searchParams.get('year')||'2026';
+ if(!/^[A-Z]{2}$/.test(state)||!/^20[0-9]{2}$/.test(year))response=json({error:'invalid_ballot_filter'},400);
+ else if(!env.DB)response=json({error:'database_unavailable'},503);
+ else try{
+  const q="SELECT b.id,b.state_code,b.election_date,b.designation,b.title,b.jurisdiction_level,b.jurisdiction_geoid,b.outcome,b.outcome_status,b.legal_status,b.effective_date,s.title AS source_title,s.url AS source_url FROM ballot_measures b JOIN sources s ON s.id=b.source_id WHERE b.state_code=? AND b.election_date>=? AND b.election_date<? AND b.publication_version_id IS NOT NULL AND b.published_at IS NOT NULL ORDER BY b.election_date DESC,b.designation LIMIT 100";
+  const found=await env.DB.prepare(q).bind(state,year+'-01-01',String(Number(year)+1)+'-01-01').all();
+  response=json({state,year,items:found.results||[],published_only:true,complete:false,privacy_note:'ABB does not know or track how an individual voted. Select a public measure to follow its result and legal status.'});
+ }catch{response=json({error:'ballot_measures_temporarily_unavailable'},503)}
+}
+else if(u.pathname.startsWith('/api/public/ballot-measures/')){
+ const id=decodeURIComponent(u.pathname.slice('/api/public/ballot-measures/'.length));
+ if(!/^[A-Za-z0-9_-]{1,128}$/.test(id))response=json({error:'invalid_measure_id'},400);
+ else if(!env.DB)response=json({error:'database_unavailable'},503);
+ else try{
+  const b=await env.DB.prepare("SELECT b.id,b.state_code,b.election_date,b.designation,b.title,b.question_text,b.jurisdiction_level,b.jurisdiction_geoid,b.outcome,b.outcome_status,b.legal_status,b.effective_date,s.title AS source_title,s.url AS source_url FROM ballot_measures b JOIN sources s ON s.id=b.source_id WHERE b.id=? AND b.publication_version_id IS NOT NULL AND b.published_at IS NOT NULL").bind(id).first();
+  if(!b)response=json({error:'not_found'},404);
+  else {
+   const updates=await env.DB.prepare("SELECT u.event_date,u.event_kind,u.status_summary,u.legal_effect,s.title AS source_title,s.url AS source_url FROM ballot_measure_updates u JOIN sources s ON s.id=u.source_id WHERE u.measure_id=? AND u.publication_version_id IS NOT NULL AND u.published_at IS NOT NULL ORDER BY u.event_date DESC LIMIT 100").bind(id).all();
+   response=json({measure:b,updates:updates.results||[],published_only:true,complete:false,as_of_note:'Legal and administrative status can change; published sources and dates must be consulted.'});
+  }
+ }catch{response=json({error:'measure_details_temporarily_unavailable'},503)}
+}
 else if(u.pathname==='/api/public/events'){
  const state=(u.searchParams.get('state')||'').toUpperCase(),county=u.searchParams.get('county')||'';
  if(!/^[A-Z]{2}$/.test(state)||(county&&!/^[0-9]{5}$/.test(county)))response=json({error:'invalid_geography'},400);
