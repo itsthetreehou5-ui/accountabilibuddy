@@ -72,3 +72,27 @@ The map remains the dominant hero element and currently renders static state geo
 This is an incremental SVG implementation, **not a React migration**. Consider React when routing, shared state across complex pages, district tiles, and streaming updates justify a component architecture; do not regress the existing Worker security model or depend on third-party CDN scripts for the offline-ready shell.
 
 Next validation: external browser QA, real touch gesture/pan behavior, performance with county geometries, 60fps motion budgets, reduced-motion audit, keyboard navigation, and high contrast. For broader geography, favor MapLibre/vector tiles plus React state transitions over ever-larger SVG path sets.
+
+## Red / white / blue and county race mapping — November 15, 2026
+
+ABB's core palette is now American red, white and blue:
+- Editorial paper/white: `#FCFCFA` and `#FFFFFF`.
+- Navy navigation/map stage: `#112C4A`.
+- Newsroom red for UI actions and editorial emphasis: `#C72E44`.
+- Data blue for **verified Democratic results only**: `#1F5DA8`.
+- Data red for **verified Republican results only**: `#C72E44`.
+- Neutral geography without published results: `#D4DCE3` and subdued slate blues; always label as **no verified result**.
+
+Do not confuse blue interface chrome or decorative backgrounds with partisan outcomes. Once real election data is available, geographic fills must be keyed to the selected contest, year, geography and published source. Avoid coloring a county based on statewide vote totals or using a raw 2026 election snapshot as an undated claim of long-term partisan lean.
+
+### Geographic information hierarchy
+
+1. **U.S. overview:** 50 state map; user selects state.
+2. **State view:** animate zoom; query the Census TIGERweb 2026 counties feature layer, show selectable county boundaries and update race cards in the right-side panel.
+3. **County view:** county label and FIPS identifier; list intersecting House races only after official congressional boundaries have been intersected; Senate is a statewide contest only where one is actually on the ballot.
+4. **Race view:** verified candidates, contest status, vote shares, turnout, reporting/certification flags, source links, time, changes and historical comparison, once ingested.
+5. **Person dossier:** biographical tenure, official positions, promises, votes, committees, finances, sourced news, contradictions and changes with moderated context and corrections.
+
+The current preview supports state selection, live Census geography fetch via a validated Worker proxy, county selection, and Senate/House explanatory race cards. **It does not have county votes, recorded county lean, candidate results, house-district overlap geometries or live individuals yet.** Never fabricate them.
+
+Geography: U.S. Census Bureau TIGERweb current-2026 Counties layer 82, with state FIPS allowlisting, server-side filtered GeoJSON, short-term caching and error notice. Before launch, validate all state geometry projections and request performance, and replace the hand-projected 50-state base with authoritative tile-backed geography as scale requires.
