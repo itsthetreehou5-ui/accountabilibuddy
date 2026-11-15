@@ -9,7 +9,8 @@ type GeoCollection = FeatureCollection<Geometry, GeoJsonProperties>;
 type Place = { state: string | null; county: string | null };
 type PublishedContest = { id: string; office: 'us_senate' | 'us_house'; district: string | null; result_status: string; election_date: string };
 type EventRecord = { id: string; headline: string; summary: string; happened_at: string; event_kind: string; source_url?: string };
-type View = 'overview' | 'races' | 'timeline' | 'accountability' | 'sources';
+type View = 'overview' | 'ballot' | 'races' | 'timeline' | 'accountability' | 'sources';
+type Audience = 'simple' | 'explore' | 'research';
 const EMPTY: GeoCollection = { type: 'FeatureCollection', features: [] };
 const DEM_2024 = new Set(['CA','CO','CT','DE','HI','IL','MA','MD','ME','MN','NH','NJ','NM','NY','OR','RI','VA','VT','WA']);
 const BLUE = '#2868b0', RED = '#c43c51';
@@ -92,6 +93,7 @@ function useReducedMotion() {
 export default function App(){
  const [place,setPlace]=useState<Place>(fromURL);
  const [view,setView]=useState<View>('overview');
+ const [audience,setAudience]=useState<Audience>('simple');
  const [counties,setCounties]=useState<GeoCollection>(EMPTY);
  const [states,setStates]=useState<GeoCollection>(EMPTY);
  const [contests,setContests]=useState<PublishedContest[]>([]);
@@ -267,6 +269,11 @@ export default function App(){
     {eyebrow:'WHAT CHANGED HERE?',title:events.length?events.length+' sourced developments':'Local coverage being built',body:'Verified developments will connect documented actions, officials, original records and reviewed promise comparisons.'}
    ];
   }
+  if(view==='ballot')return [
+   {eyebrow:'YOUR BALLOT · FIRST STEP',title:place.state?'Start with '+STATE_NAMES[place.state]:'Choose your state',body:'ABB cannot see how you voted, and should never assume it. Choose a location and a specific election or ballot measure to follow its public outcome.'},
+   {eyebrow:'STATUS · SOURCED HISTORY',title:'Election result ≠ policy in effect',body:'A passed ballot measure may face implementation steps or court challenges. The status must show its date, jurisdiction, source and any later changes.'},
+   {eyebrow:'COVERAGE · NOT YET CONNECTED',title:'Ballot-measure tracker pending',body:'Verified ballot-measure records are not loaded yet. No result or personal voting history is being inferred.'}
+  ];
   if(view==='races')return [
    {eyebrow:'SENATE',title:contests.filter(c=>c.office==='us_senate').length+' published contests',body:'A state may have no U.S. Senate contest in the selected election year.'},
    {eyebrow:'HOUSE',title:contests.filter(c=>c.office==='us_house').length+' published district contests',body:'A county may intersect several congressional districts.'},
@@ -276,11 +283,13 @@ export default function App(){
   if(view==='accountability')return [{eyebrow:'PROMISE → ACTION',title:'Check the role, not just the headline',body:'Signing, sponsoring, voting, public advocacy and rulings are different actions. ABB will link each to original sources before assessing alignment.'}];
   return [{eyebrow:'SOURCE PROVENANCE',title:'Public evidence and corrections',body:'Legislative records, reporting, reviews, revisions and data freshness will be independently inspectable.'}];
  },[view,place.state,contests,events]);
+ const prompt=audience==='simple'?'What do you need to understand?':audience==='explore'?'Choose a thread to investigate.':'Choose an evidence trail.';
  return <div className="app">
   <div className="utility"><span>ABB / THE PUBLIC RECORD, IN MOTION</span><span>MAP ENGINE PREVIEW · VERIFIED DATA ONLY</span></div>
   <header className="mast"><div className="brand">ABB<span>.</span><small>THE ACCOUNTABILITY BIG BOARD</small></div><nav><a href="/">Editorial homepage</a><a href="/api/transparency">Transparency</a><a href="https://github.com/itsthetreehou5-ui/accountabilibuddy">Source code</a></nav><span className="preview-pill">MAP ENGINE / STAGING</span></header>
   <main className="main">
    <div className="intro"><div><span className="eyebrow">WELCOME TO THE PUBLIC RECORD</span><h1>Every place has a story.<br/><em>Find yours.</em></h1></div><p>Go from the national picture to the county level, then follow the verified contests, official actions and original evidence. One location. One connected view.</p></div>
+   <section className="quickstart" aria-label="Choose how deeply to explore ABB"><div className="quickstart-intro"><span className="eyebrow">START WITH A QUESTION</span><strong>{prompt}</strong></div><div className="audience-tabs" role="group" aria-label="Information detail level"><button type="button" aria-pressed={audience==='simple'} onClick={()=>setAudience('simple')}>Keep it simple</button><button type="button" aria-pressed={audience==='explore'} onClick={()=>setAudience('explore')}>Let me explore</button><button type="button" aria-pressed={audience==='research'} onClick={()=>setAudience('research')}>Research mode</button></div><div className="quick-questions"><button type="button" onClick={()=>setView('ballot')}>What happened to what I voted on? <span>↗</span></button><button type="button" onClick={()=>setView('accountability')}>What did this person actually do? <span>↗</span></button><button type="button" onClick={()=>setView(audience==='research'?'sources':'timeline')}>{audience==='research'?'Show me original sources':"What changed where I live?"} <span>↗</span></button></div></section>
    <div className="map-shell">
     <div className="map-pane">
      <div className="top-controls"><div className="crumb"><button onClick={()=>chooseState(null)}>United States</button>{place.state&&<><span>›</span><button onClick={()=>chooseCounty(null)}>{stateName}</button></>}{place.county&&<><span>›</span><strong>{countyName||place.county}</strong></>}</div><div className="nav-buttons"><button disabled={!place.state} onClick={goBack}>← Back</button><button onClick={()=>chooseState(null)}>⌂ Nation</button></div></div>
@@ -300,8 +309,8 @@ export default function App(){
      <a className="secondary-link" href="/api/transparency">How ABB verifies its information ↗</a>
     </aside>
    </div>
-   <section className="context"><div className="context-header"><div><span className="eyebrow">CONTEXT IN ONE PLACE</span><h2>{place.state?'Inside '+currentName:'The story behind the map'}</h2></div><div className="tabs" aria-label="Explore the selected location">{([['overview','At a glance'],['races','Races'],['timeline','Timeline'],['accountability','Promises & actions'],['sources','Receipts']] as [View,string][]).map(([id,label])=><button key={id} aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</div></div>
-    <div className="context-grid">{cards.map(c=><article className="context-card" key={c.eyebrow}><small>{c.eyebrow}</small><h3>{c.title}</h3><p>{c.body}</p></article>)}</div>
+   <section className="context"><div className="context-header"><div><span className="eyebrow">CONTEXT IN ONE PLACE</span><h2>{place.state?'Inside '+currentName:'The story behind the map'}</h2></div><div className="tabs" aria-label="Explore the selected location">{([['overview','At a glance'],['ballot','My ballot'],['races','Races'],['timeline','Timeline'],['accountability','Promises & actions'],['sources','Receipts']] as [View,string][]).map(([id,label])=><button key={id} aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</div></div>
+    <div className="context-intro" role="status">{audience==='simple'?'Plain-language overview. Terms explained; no assumption that you already know the process.':audience==='explore'?'Follow developments, compare officials’ actions, and keep the selected geography in view.':'Evidence-focused view. Published records only; data gaps and dates are explicit.'}</div><div className="context-grid">{cards.map(c=><article className="context-card" key={c.eyebrow}><small>{c.eyebrow}</small><h3>{c.title}</h3><p>{c.body}</p></article>)}</div>
     <p className="methodology">Official Census 2026 geographic boundaries. The red/blue national layer represents the 2024 presidential statewide popular-vote winner, not a 2026 congressional result. No unreviewed news, partisan county lean, or candidate attribution is fabricated.</p>
    </section>
   </main>
