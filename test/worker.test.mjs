@@ -48,3 +48,29 @@ test('coverage API does not invent national coverage',async()=>{
   assert.equal(j.verified_official_count,0);
   assert.equal(j.coverage_complete,false);
 });
+
+test('nonce-based CSP matches nonce-bearing inline scripts and styles',async()=>{
+  const r=await worker.fetch(req('/'),{});
+  const html=await r.text();
+  const policy=r.headers.get('content-security-policy');
+  assert.match(policy,/script-src 'nonce-[0-9a-f]{32}'/);
+  assert.doesNotMatch(policy,/script-src 'unsafe-inline'/);
+  const nonce=policy.match(/script-src 'nonce-([^']+)'/)[1];
+  assert.ok(html.includes('<script nonce="'+nonce+'">'));
+  assert.ok(html.includes('<style nonce="'+nonce+'">'));
+});
+test('offline icon endpoint returns an SVG',async()=>{
+  const r=await worker.fetch(req('/abb-icon.svg'),{});
+  assert.equal(r.status,200);
+  assert.match(r.headers.get('content-type'),/image\/svg\+xml/);
+});
+test('public export admits incomplete coverage',async()=>{
+  const db={prepare(){return {all:async()=>({results:[]})}}};
+  const r=await worker.fetch(req('/api/public/export'),{DB:db});
+  const j=await r.json();
+  assert.equal(r.status,200);
+  assert.equal(j.complete,false);
+  assert.equal(j.verified_only,true);
+  assert.deepEqual(j.records,[]);
+  assert.match(r.headers.get('content-disposition'),/attachment/);
+});
