@@ -108,7 +108,7 @@ test('map interactions smoothly interpolate and honor reduced motion',async()=>{
  assert.match(html,/requestAnimationFrame\(tick\)/);
  assert.match(html,/cancelAnimationFrame\(previous\)/);
  assert.match(html,/reduceMotion\.matches/);
- assert.match(html,/targetViewport\(heroMap,active,2\.5\)/);
+ assert.match(html,/targetViewport\(heroMap,active,1\.23\)/);
  assert.match(html,/ABB warm editorial system/);
 });
 
