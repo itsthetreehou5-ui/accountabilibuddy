@@ -25,6 +25,30 @@ else if(u.pathname.startsWith('/api/public/events/')){
   }
  }catch{response=json({error:'event_details_temporarily_unavailable'},503)}
 }
+else if(u.pathname==='/api/public/ballot-measures'){
+ const state=(u.searchParams.get('state')||'').toUpperCase();
+ const year=u.searchParams.get('year')||'2026';
+ if(!/^[A-Z]{2}$/.test(state)||!/^20[0-9]{2}$/.test(year))response=json({error:'invalid_ballot_filter'},400);
+ else if(!env.DB)response=json({error:'database_unavailable'},503);
+ else try{
+  const q="SELECT b.id,b.state_code,b.election_date,b.designation,b.title,b.jurisdiction_level,b.jurisdiction_geoid,b.outcome,b.outcome_status,b.legal_status,b.effective_date,s.title AS source_title,s.url AS source_url FROM ballot_measures b JOIN sources s ON s.id=b.source_id WHERE b.state_code=? AND b.election_date>=? AND b.election_date<? AND b.publication_version_id IS NOT NULL AND b.published_at IS NOT NULL ORDER BY b.election_date DESC,b.designation LIMIT 100";
+  const found=await env.DB.prepare(q).bind(state,year+'-01-01',String(Number(year)+1)+'-01-01').all();
+  response=json({state,year,items:found.results||[],published_only:true,complete:false,privacy_note:'ABB does not know or track how an individual voted. Select a public measure to follow its result and legal status.'});
+ }catch{response=json({error:'ballot_measures_temporarily_unavailable'},503)}
+}
+else if(u.pathname.startsWith('/api/public/ballot-measures/')){
+ const id=decodeURIComponent(u.pathname.slice('/api/public/ballot-measures/'.length));
+ if(!/^[A-Za-z0-9_-]{1,128}$/.test(id))response=json({error:'invalid_measure_id'},400);
+ else if(!env.DB)response=json({error:'database_unavailable'},503);
+ else try{
+  const b=await env.DB.prepare("SELECT b.id,b.state_code,b.election_date,b.designation,b.title,b.question_text,b.jurisdiction_level,b.jurisdiction_geoid,b.outcome,b.outcome_status,b.legal_status,b.effective_date,s.title AS source_title,s.url AS source_url FROM ballot_measures b JOIN sources s ON s.id=b.source_id WHERE b.id=? AND b.publication_version_id IS NOT NULL AND b.published_at IS NOT NULL").bind(id).first();
+  if(!b)response=json({error:'not_found'},404);
+  else {
+   const updates=await env.DB.prepare("SELECT u.event_date,u.event_kind,u.status_summary,u.legal_effect,s.title AS source_title,s.url AS source_url FROM ballot_measure_updates u JOIN sources s ON s.id=u.source_id WHERE u.measure_id=? AND u.publication_version_id IS NOT NULL AND u.published_at IS NOT NULL ORDER BY u.event_date DESC LIMIT 100").bind(id).all();
+   response=json({measure:b,updates:updates.results||[],published_only:true,complete:false,as_of_note:'Legal and administrative status can change; published sources and dates must be consulted.'});
+  }
+ }catch{response=json({error:'measure_details_temporarily_unavailable'},503)}
+}
 else if(u.pathname==='/api/public/events'){
  const state=(u.searchParams.get('state')||'').toUpperCase(),county=u.searchParams.get('county')||'';
  if(!/^[A-Z]{2}$/.test(state)||(county&&!/^[0-9]{5}$/.test(county)))response=json({error:'invalid_geography'},400);
@@ -47,7 +71,7 @@ else if(u.pathname==='/api/elections/contests'){
  }catch{response=json({error:'election_data_temporarily_unavailable'},503)}
 }
 else if(u.pathname==='/api/geography/states'){
- const validCodes=new Set('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split(' '));
+ const validCodes=new Set('AL AK AZ AR CA CO CT DC DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split(' '));
  const cacheKey=new Request('https://abb-geography.internal/states/2026-v1');
  const cache=typeof caches!=='undefined'&&caches.default?caches.default:null;
  let cached=cache?await cache.match(cacheKey):null;
@@ -64,7 +88,7 @@ else if(u.pathname==='/api/geography/states'){
    if(!f?.geometry||!validCodes.has(code)||seen.has(code))return false;
    seen.add(code);return true;
   }).map(f=>({...f,properties:{...f.properties,STUSPS:f.properties.STUSAB}}));
-  if(features.length!==50)throw Error('incomplete_state_collection');
+  if(features.length!==51)throw Error('incomplete_state_collection');
   response=new Response(JSON.stringify({type:'FeatureCollection',features,source:'U.S. Census Bureau TIGERweb January 1 2026 state boundaries',results_status:'geography_only_not_election_results'}),{headers:{'Content-Type':'application/geo+json; charset=utf-8','Cache-Control':'public, max-age=21600'}});
   if(cache)ctx?.waitUntil?.(cache.put(cacheKey,response.clone()));
  }catch{response=json({error:'state_geography_temporarily_unavailable',verified_states_available:false},503)}
@@ -91,6 +115,23 @@ else if(u.pathname==='/api/geography/counties'){
       if(cache)ctx?.waitUntil?.(cache.put(cacheKey,response.clone()));
     }catch(e){response=json({error:'county_geography_temporarily_unavailable',source:'U.S. Census Bureau TIGERweb'},503)}
   }
+}
+else if(u.pathname.startsWith('/api/public/officials/')){
+ const id=decodeURIComponent(u.pathname.slice('/api/public/officials/'.length));
+ if(!/^[A-Za-z0-9_-]{1,128}$/.test(id))response=json({error:'invalid_official_id'},400);
+ else if(!env.DB)response=json({error:'database_unavailable'},503);
+ else try{
+  const official=await env.DB.prepare("SELECT o.id,o.name,o.bioguide_id,o.chamber,o.state_code,o.district,o.start_date,o.end_date FROM officials o WHERE o.id=? AND EXISTS(SELECT 1 FROM publication_versions v WHERE v.entity_type='official' AND v.entity_id=o.id)").bind(id).first();
+  if(!official)response=json({error:'not_found'},404);
+  else{
+   const [claims,actions,relationships]=await Promise.all([
+    env.DB.prepare("SELECT c.id,c.statement,c.stated_at,s.title AS source_title,s.url AS source_url,cs.context FROM claims c JOIN claim_sources cs ON cs.claim_id=c.id JOIN sources s ON s.id=cs.source_id WHERE c.official_id=? AND c.status='documented' AND EXISTS(SELECT 1 FROM publication_versions v WHERE v.entity_type='claim' AND v.entity_id=c.id) ORDER BY c.stated_at DESC LIMIT 100").bind(id).all(),
+    env.DB.prepare("SELECT a.id,a.kind,a.external_id,a.occurred_at,a.summary,s.title AS source_title,s.url AS source_url FROM actions a JOIN sources s ON s.id=a.source_id WHERE a.official_id=? AND EXISTS(SELECT 1 FROM publication_versions v WHERE v.entity_type='action' AND v.entity_id=a.id) ORDER BY a.occurred_at DESC LIMIT 100").bind(id).all(),
+    env.DB.prepare("SELECT l.claim_id,l.action_id,l.relationship,l.rationale FROM claim_action_links l JOIN claims c ON c.id=l.claim_id JOIN actions a ON a.id=l.action_id WHERE c.official_id=? AND a.official_id=? AND EXISTS(SELECT 1 FROM publication_versions v WHERE v.entity_type='claim_action_link' AND v.entity_id=(l.claim_id||':'||l.action_id)) AND EXISTS(SELECT 1 FROM publication_versions vc WHERE vc.entity_type='claim' AND vc.entity_id=c.id) AND EXISTS(SELECT 1 FROM publication_versions va WHERE va.entity_type='action' AND va.entity_id=a.id) ORDER BY l.claim_id LIMIT 100").bind(id,id).all()
+   ]);
+   response=json({official,claims:claims.results||[],actions:actions.results||[],reviewed_relationships:relationships.results||[],published_only:true,complete:false,attribution_note:'Published actions and campaign statements are separate records. A relationship is editorially reviewed, with rationale; a missing link does not establish consistency or contradiction.'});
+  }
+ }catch{response=json({error:'official_details_temporarily_unavailable'},503)}
 }
 else if(u.pathname==='/api/public/officials'){
   const state=(u.searchParams.get('state')||'').toUpperCase();

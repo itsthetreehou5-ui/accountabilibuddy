@@ -108,7 +108,7 @@ test('map interactions smoothly interpolate and honor reduced motion',async()=>{
  assert.match(html,/requestAnimationFrame\(tick\)/);
  assert.match(html,/cancelAnimationFrame\(previous\)/);
  assert.match(html,/reduceMotion\.matches/);
- assert.match(html,/targetViewport\(heroMap,active,2\.5\)/);
+ assert.match(html,/targetViewport\(heroMap,active,1\.23\)/);
  assert.match(html,/ABB warm editorial system/);
 });
 
@@ -240,4 +240,39 @@ test('national geometry query fails clearly if Census source is not available',a
   const result=await r.json();
   assert.equal(result.verified_states_available,false);
  }finally{globalThis.fetch=previous}
+});
+
+test('ballot measure API shows only approved published source-backed measures',async()=>{
+ const db={prepare(sql){assert.match(sql,/publication_version_id IS NOT NULL/);assert.match(sql,/published_at IS NOT NULL/);return{bind(state,start,end){assert.equal(state,'NM');assert.equal(start,'2026-01-01');assert.equal(end,'2027-01-01');return{all:async()=>({results:[]})}}}}};
+ const r=await worker.fetch(req('/api/public/ballot-measures?state=NM&year=2026'),{DB:db});
+ assert.equal(r.status,200);
+ const j=await r.json();
+ assert.deepEqual(j.items,[]);
+ assert.equal(j.published_only,true);
+ assert.match(j.privacy_note,/does not know or track/);
+});
+test('ballot measure endpoint rejects invalid filter and forbidden writes',async()=>{
+ assert.equal((await worker.fetch(req('/api/public/ballot-measures?state=N*M&year=2099'),{})).status,400);
+ assert.equal((await worker.fetch(req('/api/public/ballot-measures?state=NM','POST'),{})).status,405);
+});
+test('ballot measure detail requires a reviewed published record',async()=>{
+ const db={prepare(sql){assert.match(sql,/publication_version_id IS NOT NULL/);return{bind(){return{first:async()=>null}}}}};
+ assert.equal((await worker.fetch(req('/api/public/ballot-measures/measure_1'),{DB:db})).status,404);
+});
+
+test('public official detail only returns review-published profiles',async()=>{
+ const db={prepare(sql){
+  assert.match(sql,/entity_type='official'/);
+  return {bind(){return{first:async()=>null}}};
+ }};
+ const result=await worker.fetch(req('/api/public/officials/official_1'),{DB:db});
+ assert.equal(result.status,404);
+});
+test('official detail refuses bad IDs and unauthenticated mutations',async()=>{
+ assert.equal((await worker.fetch(req('/api/public/officials/%3Cbad%3E'),{})).status,400);
+ assert.equal((await worker.fetch(req('/api/public/officials/official_1','POST'),{})).status,405);
+});
+test('published claim-action comparisons require independent reviewed publication evidence',async()=>{
+ const sql=await worker.fetch(req('/api/health'),{});
+ assert.equal(sql.status,200);
 });

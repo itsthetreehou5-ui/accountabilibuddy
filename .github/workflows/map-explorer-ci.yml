@@ -24,9 +24,24 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run build
+      - name: Verify isolated staging build output
+        run: |
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            const base='.cloudflare/output/v0/workers/default/';
+            const cfg=JSON.parse(fs.readFileSync(base+'worker.config.json','utf8'));
+            const blob=fs.readFileSync(base+'bundle/index.js','utf8');
+            if(cfg.name!=='accountabilibuddy-map-staging') throw Error('Wrong Worker target');
+            if(cfg.assets?.basePath!=='/map-lab') throw Error('Wrong staging route');
+            if(!cfg.assets.runWorkerFirst.includes('/api/*')) throw Error('Missing API isolation');
+            if(cfg.env||cfg.bindings||cfg.durable_objects||/PRM|PRIVATE_EVIDENCE/.test(blob)) throw Error('Private binding is forbidden in staging');
+            if(!fs.existsSync(base+'assets/index.html')) throw Error('Missing frontend assets');
+            console.log('Cloudflare staging configuration passed isolation gate');
+          "
       - uses: actions/upload-artifact@v4
         with:
           name: abb-react-map-preview
-          path: apps/map-explorer/dist
+          path: apps/map-explorer/.cloudflare/output/v0
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 7
