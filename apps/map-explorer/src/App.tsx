@@ -9,6 +9,7 @@ type GeoCollection = FeatureCollection<Geometry, GeoJsonProperties>;
 type Place = { state: string | null; county: string | null };
 type PublishedContest = { id: string; office: 'us_senate' | 'us_house'; district: string | null; result_status: string; election_date: string };
 type EventRecord = { id: string; headline: string; summary: string; happened_at: string; event_kind: string; source_url?: string };
+type BallotMeasure = {id:string;designation:string;title:string;election_date:string;outcome:string;outcome_status:string;legal_status:string;source_url?:string};
 type View = 'overview' | 'ballot' | 'races' | 'timeline' | 'accountability' | 'sources';
 type Audience = 'simple' | 'explore' | 'research';
 const EMPTY: GeoCollection = { type: 'FeatureCollection', features: [] };
@@ -98,6 +99,9 @@ export default function App(){
  const [states,setStates]=useState<GeoCollection>(EMPTY);
  const [contests,setContests]=useState<PublishedContest[]>([]);
  const [events,setEvents]=useState<EventRecord[]>([]);
+ const [ballotYear,setBallotYear]=useState('2026');
+ const [measures,setMeasures]=useState<BallotMeasure[]>([]);
+ const [ballotCoverage,setBallotCoverage]=useState<'idle'|'loading'|'ready'|'unavailable'>('idle');
  const [countyName,setCountyName]=useState('');
  const [dataState,setDataState]=useState<'loading'|'ready'|'unavailable'>('loading');
  const [mapError,setMapError]=useState('');
@@ -257,6 +261,15 @@ export default function App(){
    if(state)fitFeature(map,state,'state',reduced);
   }else map.fitBounds([[-126,23],[-66,50]],{padding:45,duration:reduced?0:950,essential:false});
  },[place,counties,states,reduced]);
+ useEffect(()=>{
+  if(!place.state){setMeasures([]);setBallotCoverage('idle');return}
+  const controller=new AbortController();
+  setMeasures([]);setBallotCoverage('loading');
+  json<{items:BallotMeasure[]}>('/api/public/ballot-measures?state='+encodeURIComponent(place.state)+'&year='+ballotYear,controller.signal)
+   .then(data=>{if(!controller.signal.aborted){setMeasures(data.items||[]);setBallotCoverage('ready')}})
+   .catch(e=>{if(e.name!=='AbortError'){setMeasures([]);setBallotCoverage('unavailable')}});
+  return ()=>controller.abort();
+ },[place.state,ballotYear]);
  const currentName=label(place,countyName);
  const stateName=place.state?STATE_NAMES[place.state]:'';
  const stateCounties=useMemo(()=>counties.features.filter(f=>f.properties?.GEOID).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))),[counties]);
@@ -270,9 +283,9 @@ export default function App(){
    ];
   }
   if(view==='ballot')return [
-   {eyebrow:'YOUR BALLOT · FIRST STEP',title:place.state?'Start with '+STATE_NAMES[place.state]:'Choose your state',body:'ABB cannot see how you voted, and should never assume it. Choose a location and a specific election or ballot measure to follow its public outcome.'},
+   {eyebrow:'BALLOT MEASURES · '+ballotYear,title:place.state?(measures.length?measures.length+' published measures':'No published measures yet'):'Choose your state',body:'Your vote remains private. Select a location and year to follow publicly documented outcomes, not your individual ballot.'},
    {eyebrow:'STATUS · SOURCED HISTORY',title:'Election result ≠ policy in effect',body:'A passed ballot measure may face implementation steps or court challenges. The status must show its date, jurisdiction, source and any later changes.'},
-   {eyebrow:'COVERAGE · NOT YET CONNECTED',title:'Ballot-measure tracker pending',body:'Verified ballot-measure records are not loaded yet. No result or personal voting history is being inferred.'}
+   {eyebrow:'COVERAGE / STATUS',title:ballotCoverage==='unavailable'?'Data temporarily unavailable':ballotCoverage==='loading'?'Checking published sources':'Reviewed sources only',body:'An empty result means ABB has not published measures for this selection, not that no ballot measure occurred. No personal voting history is inferred.'}
   ];
   if(view==='races')return [
    {eyebrow:'SENATE',title:contests.filter(c=>c.office==='us_senate').length+' published contests',body:'A state may have no U.S. Senate contest in the selected election year.'},
@@ -282,7 +295,7 @@ export default function App(){
   if(view==='timeline')return [{eyebrow:'EVENT TIMELINE',title:events.length?events.length+' sourced developments':'Awaiting verified events',body:'Congressional actions, public statements, and law changes will be sorted by date and sourced to original documents.'}];
   if(view==='accountability')return [{eyebrow:'PROMISE → ACTION',title:'Check the role, not just the headline',body:'Signing, sponsoring, voting, public advocacy and rulings are different actions. ABB will link each to original sources before assessing alignment.'}];
   return [{eyebrow:'SOURCE PROVENANCE',title:'Public evidence and corrections',body:'Legislative records, reporting, reviews, revisions and data freshness will be independently inspectable.'}];
- },[view,place.state,contests,events]);
+ },[view,place.state,contests,events,ballotYear,measures,ballotCoverage]);
  const prompt=audience==='simple'?'What do you need to understand?':audience==='explore'?'Choose a thread to investigate.':'Choose an evidence trail.';
  return <div className="app">
   <div className="utility"><span>ABB / THE PUBLIC RECORD, IN MOTION</span><span>MAP ENGINE PREVIEW · VERIFIED DATA ONLY</span></div>
@@ -310,7 +323,8 @@ export default function App(){
     </aside>
    </div>
    <section className="context"><div className="context-header"><div><span className="eyebrow">CONTEXT IN ONE PLACE</span><h2>{place.state?'Inside '+currentName:'The story behind the map'}</h2></div><div className="tabs" aria-label="Explore the selected location">{([['overview','At a glance'],['ballot','My ballot'],['races','Races'],['timeline','Timeline'],['accountability','Promises & actions'],['sources','Receipts']] as [View,string][]).map(([id,label])=><button key={id} aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</div></div>
-    <div className="context-intro" role="status">{audience==='simple'?'Plain-language overview. Terms explained; no assumption that you already know the process.':audience==='explore'?'Follow developments, compare officials’ actions, and keep the selected geography in view.':'Evidence-focused view. Published records only; data gaps and dates are explicit.'}</div><div className="context-grid">{cards.map(c=><article className="context-card" key={c.eyebrow}><small>{c.eyebrow}</small><h3>{c.title}</h3><p>{c.body}</p></article>)}</div>
+    {view==='ballot'&&<div className="ballot-filters"><label htmlFor="ballot-year">Election year</label><select id="ballot-year" value={ballotYear} onChange={e=>setBallotYear(e.target.value)}>{['2026','2024','2022','2020','2018'].map(year=><option key={year} value={year}>{year}</option>)}</select><span>Select a state on the map to scope publicly published ballot measures. ABB cannot see how you voted.</span></div>}<div className="context-intro" role="status">{audience==='simple'?'Plain-language overview. Terms explained; no assumption that you already know the process.':audience==='explore'?'Follow developments, compare officials’ actions, and keep the selected geography in view.':'Evidence-focused view. Published records only; data gaps and dates are explicit.'}</div><div className="context-grid">{cards.map(c=><article className="context-card" key={c.eyebrow}><small>{c.eyebrow}</small><h3>{c.title}</h3><p>{c.body}</p></article>)}</div>
+    {view==='ballot'&&measures.length>0&&<div className="ballot-measures" aria-label="Published ballot measures">{measures.map(measure=><article className="ballot-measure" key={measure.id}><small>{measure.designation} · {measure.election_date} · {measure.outcome_status}</small><strong>{measure.title}</strong><p>Public result: {measure.outcome}. Legal status: {measure.legal_status.replaceAll('_',' ')}.</p>{measure.source_url?.startsWith('https://')&&<a href={measure.source_url} target="_blank" rel="noopener noreferrer">Inspect primary source ↗</a>}</article>)}</div>}
     <p className="methodology">Official Census 2026 geographic boundaries. The red/blue national layer represents the 2024 presidential statewide popular-vote winner, not a 2026 congressional result. No unreviewed news, partisan county lean, or candidate attribution is fabricated.</p>
    </section>
   </main>
