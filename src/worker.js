@@ -8,6 +8,23 @@ if(u.pathname.startsWith('/admin')||u.pathname.startsWith('/internal')||u.pathna
 else if(method!=='GET'&&method!=='HEAD')response=json({error:'method_not_allowed'},405);
 else if(u.pathname==='/api/health')response=json({status:'ok',service:'accountabilibuddy',phase:'interactive-preview'});
 else if(u.pathname==='/api/integrations/status'){let connected=false;try{if(env.PRM&&typeof env.PRM.health==='function'){const health=await env.PRM.health();connected=health?.ok===true}}catch{}response=json({prm:{connected,mode:'read-only staging service binding',mutations_enabled:false},public_edition:'ABB preview'});}
+else if(u.pathname.startsWith('/api/public/events/')){
+ const id=decodeURIComponent(u.pathname.slice('/api/public/events/'.length));
+ if(!/^[A-Za-z0-9_-]{1,128}$/.test(id))response=json({error:'invalid_event_id'},400);
+ else if(!env.DB)response=json({error:'database_unavailable'},503);
+ else try{
+  const event=await env.DB.prepare("SELECT e.id,e.headline,e.summary,e.event_kind,e.happened_at,e.jurisdiction_level,e.state_code,e.county_geoid,e.affected_area_note,s.title AS primary_source_title,s.url AS primary_source_url FROM civic_events e JOIN sources s ON s.id=e.source_id WHERE e.id=? AND e.reported_status='published' AND e.published_version_id IS NOT NULL").bind(id).first();
+  if(!event)response=json({error:'not_found'},404);
+  else{
+   const [actors,commitments,coverage]=await Promise.all([
+    env.DB.prepare("SELECT p.id AS person_id,p.normalized_name AS name,a.role,a.explanation,s.title AS source_title,s.url AS source_url FROM civic_event_actors a JOIN person_subjects p ON p.id=a.person_id JOIN sources s ON s.id=a.evidence_source_id WHERE a.event_id=? ORDER BY a.role,p.normalized_name LIMIT 100").bind(id).all(),
+    env.DB.prepare("SELECT c.id AS claim_id,c.statement,c.stated_at,l.alignment,l.rationale FROM civic_event_commitments l JOIN claims c ON c.id=l.claim_id WHERE l.event_id=? AND l.reviewed_by IS NOT NULL AND EXISTS(SELECT 1 FROM publication_versions v WHERE v.entity_type='claim' AND v.entity_id=c.id) LIMIT 100").bind(id).all(),
+    env.DB.prepare("SELECT v.coverage_type,s.title,s.url FROM civic_event_coverage v JOIN sources s ON s.id=v.source_id WHERE v.event_id=? LIMIT 100").bind(id).all()
+   ]);
+   response=json({event,actors:actors.results||[],commitments:commitments.results||[],sources:coverage.results||[],published_only:true,attribution_note:'Recorded actions, public statements, and interpretations must not be conflated; conflicting positions are review findings, not automatically inferred guilt.'});
+  }
+ }catch{response=json({error:'event_details_temporarily_unavailable'},503)}
+}
 else if(u.pathname==='/api/public/events'){
  const state=(u.searchParams.get('state')||'').toUpperCase(),county=u.searchParams.get('county')||'';
  if(!/^[A-Z]{2}$/.test(state)||(county&&!/^[0-9]{5}$/.test(county)))response=json({error:'invalid_geography'},400);
