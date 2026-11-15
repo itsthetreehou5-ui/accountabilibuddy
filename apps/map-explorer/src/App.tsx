@@ -174,7 +174,7 @@ export default function App(){
     style:'https://tiles.openfreemap.org/styles/liberty',
     center:[-97.6,39.5],zoom:3.3,
     minZoom:2.3,maxZoom:13,
-    attributionControl:true,
+    attributionControl:{compact:true},
     dragRotate:false,touchPitch:false,pitchWithRotate:false,
     cooperativeGestures:false
    });
@@ -234,7 +234,7 @@ export default function App(){
  },[counties]);
  useEffect(()=>{
   const map=mapRef.current;if(!map||!map.getLayer('abb-state-fills'))return;
-  const filled:ExpressionSpecification=['match',['get','STUSPS'],...STATES.flatMap(code=>[code,layer==='baseline'?(DEM_2024.has(code)?BLUE:RED):'#94abc0']),'#d2dce5'] as unknown as maplibregl.ExpressionSpecification;
+  const filled:ExpressionSpecification=['match',['get','STUSPS'],...STATES.flatMap(code=>[code,layer==='baseline'?(DEM_2024.has(code)?BLUE:RED):'#94abc0']),'#d2dce5'] as unknown as ExpressionSpecification;
   map.setPaintProperty('abb-state-fills','fill-color',filled);
  },[layer,states]);
  useEffect(()=>{
