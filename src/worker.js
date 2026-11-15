@@ -116,6 +116,23 @@ else if(u.pathname==='/api/geography/counties'){
     }catch(e){response=json({error:'county_geography_temporarily_unavailable',source:'U.S. Census Bureau TIGERweb'},503)}
   }
 }
+else if(u.pathname.startsWith('/api/public/officials/')){
+ const id=decodeURIComponent(u.pathname.slice('/api/public/officials/'.length));
+ if(!/^[A-Za-z0-9_-]{1,128}$/.test(id))response=json({error:'invalid_official_id'},400);
+ else if(!env.DB)response=json({error:'database_unavailable'},503);
+ else try{
+  const official=await env.DB.prepare("SELECT o.id,o.name,o.bioguide_id,o.chamber,o.state_code,o.district,o.start_date,o.end_date FROM officials o WHERE o.id=? AND EXISTS(SELECT 1 FROM publication_versions v WHERE v.entity_type='official' AND v.entity_id=o.id)").bind(id).first();
+  if(!official)response=json({error:'not_found'},404);
+  else{
+   const [claims,actions,relationships]=await Promise.all([
+    env.DB.prepare("SELECT c.id,c.statement,c.stated_at,s.title AS source_title,s.url AS source_url,cs.context FROM claims c JOIN claim_sources cs ON cs.claim_id=c.id JOIN sources s ON s.id=cs.source_id WHERE c.official_id=? AND c.status='documented' AND EXISTS(SELECT 1 FROM publication_versions v WHERE v.entity_type='claim' AND v.entity_id=c.id) ORDER BY c.stated_at DESC LIMIT 100").bind(id).all(),
+    env.DB.prepare("SELECT a.id,a.kind,a.external_id,a.occurred_at,a.summary,s.title AS source_title,s.url AS source_url FROM actions a JOIN sources s ON s.id=a.source_id WHERE a.official_id=? AND EXISTS(SELECT 1 FROM publication_versions v WHERE v.entity_type='action' AND v.entity_id=a.id) ORDER BY a.occurred_at DESC LIMIT 100").bind(id).all(),
+    env.DB.prepare("SELECT l.claim_id,l.action_id,l.relationship,l.rationale FROM claim_action_links l JOIN claims c ON c.id=l.claim_id JOIN actions a ON a.id=l.action_id WHERE c.official_id=? AND a.official_id=? AND EXISTS(SELECT 1 FROM publication_versions v WHERE v.entity_type='claim_action_link' AND v.entity_id=(l.claim_id||':'||l.action_id)) AND EXISTS(SELECT 1 FROM publication_versions vc WHERE vc.entity_type='claim' AND vc.entity_id=c.id) AND EXISTS(SELECT 1 FROM publication_versions va WHERE va.entity_type='action' AND va.entity_id=a.id) ORDER BY l.claim_id LIMIT 100").bind(id,id).all()
+   ]);
+   response=json({official,claims:claims.results||[],actions:actions.results||[],reviewed_relationships:relationships.results||[],published_only:true,complete:false,attribution_note:'Published actions and campaign statements are separate records. A relationship is editorially reviewed, with rationale; a missing link does not establish consistency or contradiction.'});
+  }
+ }catch{response=json({error:'official_details_temporarily_unavailable'},503)}
+}
 else if(u.pathname==='/api/public/officials'){
   const state=(u.searchParams.get('state')||'').toUpperCase();
   if(state&&!/^[A-Z]{2}$/.test(state))response=json({error:'invalid_state_code'},400);
