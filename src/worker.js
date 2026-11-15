@@ -46,6 +46,29 @@ else if(u.pathname==='/api/elections/contests'){
    response=json({state,election_date:date,published_only:true,items:result.results||[],complete:false,source_note:'Only editorially published contests may appear. Empty results are not proof that no election occurred.'});
  }catch{response=json({error:'election_data_temporarily_unavailable'},503)}
 }
+else if(u.pathname==='/api/geography/states'){
+ const validCodes=new Set('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split(' '));
+ const cacheKey=new Request('https://abb-geography.internal/states/2026-v1');
+ const cache=typeof caches!=='undefined'&&caches.default?caches.default:null;
+ let cached=cache?await cache.match(cacheKey):null;
+ if(cached)response=cached;
+ else try{
+  const params=new URLSearchParams({where:'1=1',outFields:'GEOID,NAME,STUSAB',outSR:'4326',geometryPrecision:'3',maxAllowableOffset:'0.028',f:'geojson'});
+  const upstream=await fetch('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/80/query?'+params,{signal:AbortSignal.timeout(12000),headers:{Accept:'application/geo+json, application/json'}});
+  if(!upstream.ok)throw Error('census_states_unavailable');
+  const data=await upstream.json();
+  if(data?.type!=='FeatureCollection'||!Array.isArray(data.features))throw Error('invalid_state_collection');
+  const seen=new Set();
+  const features=data.features.filter(f=>{
+   const code=String(f?.properties?.STUSAB||'');
+   if(!f?.geometry||!validCodes.has(code)||seen.has(code))return false;
+   seen.add(code);return true;
+  }).map(f=>({...f,properties:{...f.properties,STUSPS:f.properties.STUSAB}}));
+  if(features.length!==50)throw Error('incomplete_state_collection');
+  response=new Response(JSON.stringify({type:'FeatureCollection',features,source:'U.S. Census Bureau TIGERweb January 1 2026 state boundaries',results_status:'geography_only_not_election_results'}),{headers:{'Content-Type':'application/geo+json; charset=utf-8','Cache-Control':'public, max-age=21600'}});
+  if(cache)ctx?.waitUntil?.(cache.put(cacheKey,response.clone()));
+ }catch{response=json({error:'state_geography_temporarily_unavailable',verified_states_available:false},503)}
+}
 else if(u.pathname==='/api/geography/counties'){
   const state=(u.searchParams.get('state')||'').toUpperCase();
   const fips={AL:'01',AK:'02',AZ:'04',AR:'05',CA:'06',CO:'08',CT:'09',DE:'10',FL:'12',GA:'13',HI:'15',ID:'16',IL:'17',IN:'18',IA:'19',KS:'20',KY:'21',LA:'22',ME:'23',MD:'24',MA:'25',MI:'26',MN:'27',MS:'28',MO:'29',MT:'30',NE:'31',NV:'32',NH:'33',NJ:'34',NM:'35',NY:'36',NC:'37',ND:'38',OH:'39',OK:'40',OR:'41',PA:'42',RI:'44',SC:'45',SD:'46',TN:'47',TX:'48',UT:'49',VT:'50',VA:'51',WA:'53',WV:'54',WI:'55',WY:'56'};
