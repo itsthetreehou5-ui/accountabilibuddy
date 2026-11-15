@@ -95,7 +95,7 @@ test('map-first homepage offers immediate state answers',async()=>{
  assert.match(html,/id="hero-explorer"/);
  assert.match(html,/id="hero-state-select"/);
  assert.match(html,/id="hero-answer-title"/);
- assert.match(html,/id="hero-map-svg"/);
+ assert.match(html,/heroMap\.id='hero-map-svg'/);
  assert.match(html,/heroMap\.addEventListener\('click'/);
  assert.match(html,/heroUpdate\(\)/);
  assert.match(html,/A precise address is needed/);
