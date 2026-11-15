@@ -96,3 +96,20 @@ Do not confuse blue interface chrome or decorative backgrounds with partisan out
 The current preview supports state selection, live Census geography fetch via a validated Worker proxy, county selection, and Senate/House explanatory race cards. **It does not have county votes, recorded county lean, candidate results, house-district overlap geometries or live individuals yet.** Never fabricate them.
 
 Geography: U.S. Census Bureau TIGERweb current-2026 Counties layer 82, with state FIPS allowlisting, server-side filtered GeoJSON, short-term caching and error notice. Before launch, validate all state geometry projections and request performance, and replace the hand-projected 50-state base with authoritative tile-backed geography as scale requires.
+
+## One-screen decision experience and local event attribution
+
+The homepage Big Board is a **decision surface**, not a scrolling article. Keep the state map large, the right summary concise, and the deeper race/evidence cards directly below. Show a maximum of a few meaningful next actions first; only expand detail at the visitor's request.
+
+A map selection changes the **entire context together**: geography, race listings, 2024 presidential baseline where relevant, 2026 sourced contests, verified local civic developments and provenance. The location-linked events module shows one short status line first and an optional source-backed event list; individual events open an action trail with:
+- What happened and when, and at what level of government.
+- Precisely which officials signed, sponsored, voted for/against, ordered, or merely commented.
+- Original bills, vote records, executive documents or court rulings.
+- Related campaign promises and separately reviewed alignment assessment.
+- Review and publication provenance; contradictory evidence and corrections.
+
+Avoid conflating federal House/Senate authority with state governors, state legislatures, courts, or local officials. An event affecting a county is not necessarily a county-enacted law. A state measure affects all counties under its jurisdiction unless exceptions or injunctions apply. No automatic claim that a politician "caused" an outcome without evidentiary grounds.
+
+Example about an Iowa abortion measure is **hypothetical**, not a pre-verified news event or accusation. Nothing is published as a local news fact without primary sources and review.
+
+Current build: versioned civic-event schema, granular actor roles, source-linked attributions, moderated promise alignment, read-only published-event APIs, compact location contextual module and event details. No actual verified local civic event corpus is populated yet. The event module must state incomplete coverage instead of making up headlines.
