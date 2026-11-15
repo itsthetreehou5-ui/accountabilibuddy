@@ -62,3 +62,13 @@ Prioritize responsive photography and real source-linked graphics as actual lice
 - Validate content security policy against scripts, styles and any later image domains.
 - Confirm SVG geographical projections against an authoritative Census source.
 - Add licensed editorial photography with provenance and localized caching before classifying the newsroom as editorially complete.
+
+## Warm editorial motion revision — November 15, 2026
+
+Inspired by the user-supplied AquaCrop reference, ABB's neutral interface moves from hard white/blue to warm off-white/cream, soft olive/forest greens, rounded surfaces and a calmer visual rhythm. Preserve credibility, accessible contrast and restrained typography. Avoid adopting the source application's specific branding or layout.
+
+The map remains the dominant hero element and currently renders static state geography in SVG. Animated navigation now uses `requestAnimationFrame`, cubic ease-in-out interpolation between viewBox coordinates, cancellation of superseded animations, and a reduced-motion bypass. The full Big Board and hero map remain synchronized through their shared state selection. An animated answer panel reinforces cause and effect without delaying readable answers.
+
+This is an incremental SVG implementation, **not a React migration**. Consider React when routing, shared state across complex pages, district tiles, and streaming updates justify a component architecture; do not regress the existing Worker security model or depend on third-party CDN scripts for the offline-ready shell.
+
+Next validation: external browser QA, real touch gesture/pan behavior, performance with county geometries, 60fps motion budgets, reduced-motion audit, keyboard navigation, and high contrast. For broader geography, favor MapLibre/vector tiles plus React state transitions over ever-larger SVG path sets.
