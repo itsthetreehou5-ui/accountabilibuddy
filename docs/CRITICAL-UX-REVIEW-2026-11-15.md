@@ -69,3 +69,13 @@ The direction is compelling but the currently implemented product is a **geograp
 
 ### Design north star
 **The map chooses the context. The answer comes first. The receipts are always one tap away.**
+
+## Follow-up implementation — November 15
+
+The staging branch now directly addresses the two priority voter questions:
+- **“What happened to what I voted on?”**: `/api/public/ballot-measures` and measure detail with separately tracked election result, legal status, effective date, timeline and source. The React app offers state/year selection. This does *not* store or infer individual ballot choices.
+- **“This person said X — what did they actually do?”**: `/api/public/officials/:id` with independently published official record, sourced statements, sourced actions and only explicitly reviewed claim/action relationships. The React app offers a state-scoped official picker and distinct statement/action columns, with explicit unavailable-data messaging.
+- Washington, D.C. now appears in national geography with correct D.C. representation copy, rather than being treated as a 51st state with senators.
+- County taps now suppress the underlying state tap to prevent competing camera moves.
+
+**Still outstanding:** verified source ingestion, independently tested map animation on real browsers and devices, 2026 district intersection data, legal implementation tracking, service configuration publication, and a confirmed staging URL. These capabilities are explicitly not labeled live.
