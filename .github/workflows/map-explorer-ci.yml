@@ -27,6 +27,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: abb-react-map-preview
-          path: apps/map-explorer/dist
+          path: apps/map-explorer/.cloudflare/output/v0
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 7
