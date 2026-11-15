@@ -8,6 +8,16 @@ if(u.pathname.startsWith('/admin')||u.pathname.startsWith('/internal')||u.pathna
 else if(method!=='GET'&&method!=='HEAD')response=json({error:'method_not_allowed'},405);
 else if(u.pathname==='/api/health')response=json({status:'ok',service:'accountabilibuddy',phase:'interactive-preview'});
 else if(u.pathname==='/api/integrations/status'){let connected=false;try{if(env.PRM&&typeof env.PRM.health==='function'){const health=await env.PRM.health();connected=health?.ok===true}}catch{}response=json({prm:{connected,mode:'read-only staging service binding',mutations_enabled:false},public_edition:'ABB preview'});}
+else if(u.pathname==='/api/public/events'){
+ const state=(u.searchParams.get('state')||'').toUpperCase(),county=u.searchParams.get('county')||'';
+ if(!/^[A-Z]{2}$/.test(state)||(county&&!/^[0-9]{5}$/.test(county)))response=json({error:'invalid_geography'},400);
+ else if(!env.DB)response=json({error:'database_unavailable'},503);
+ else try{
+  const query="SELECT e.id,e.headline,e.summary,e.event_kind,e.happened_at,e.jurisdiction_level,e.state_code,e.county_geoid,e.affected_area_note,s.title AS source_title,s.url AS source_url FROM civic_events e JOIN sources s ON s.id=e.source_id WHERE e.reported_status='published' AND e.published_version_id IS NOT NULL AND e.state_code=?"+(county?" AND (e.county_geoid=? OR e.county_geoid IS NULL)":"")+" ORDER BY e.happened_at DESC LIMIT 12";
+  const statement=env.DB.prepare(query),data=county?await statement.bind(state,county).all():await statement.bind(state).all();
+  response=json({state,county:county||null,items:data.results||[],published_only:true,complete:false,methodology:'Only reviewed, versioned events with primary-source provenance are displayed. Statewide events can appear within county context; affected_area_note must be read before inferring a county-specific effect.'});
+ }catch{response=json({error:'events_temporarily_unavailable'},503)}
+}
 else if(u.pathname==='/api/elections/contests'){
  const state=(u.searchParams.get('state')||'').toUpperCase();
  const date=u.searchParams.get('date')||'2026-11-03';
