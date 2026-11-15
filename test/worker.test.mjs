@@ -161,3 +161,23 @@ test('ABB maps distinguish unverified county lean from election data',async()=>{
  assert.match(html,/data-race="house"/);
  assert.match(html,/No 2026 contests have been published/);
 });
+
+test('local context endpoint is publication-gated and validates geography',async()=>{
+ const invalid=await worker.fetch(req('/api/public/events?state=ZZ&county=bad'),{});
+ assert.equal(invalid.status,400);
+ const db={prepare(sql){assert.match(sql,/reported_status='published'/);assert.match(sql,/published_version_id IS NOT NULL/);return {bind(state,county){assert.equal(state,'IA');assert.equal(county,'19153');return {all:async()=>({results:[]})}}}}};
+ const response=await worker.fetch(req('/api/public/events?state=IA&county=19153'),{DB:db});
+ const data=await response.json();
+ assert.equal(response.status,200);
+ assert.deepEqual(data.items,[]);
+ assert.equal(data.published_only,true);
+});
+test('contextual summary can be shown without scrolling through an unreviewed news feed',async()=>{
+ const r=await worker.fetch(req('/'),{});
+ const h=await r.text();
+ assert.match(h,/id="local-signals"/);
+ assert.match(h,/id="local-signals-summary"/);
+ assert.match(h,/id="local-expand"/);
+ assert.match(h,/function loadLocalEvents/);
+ assert.match(h,/No reviewed local developments have been published/);
+});
