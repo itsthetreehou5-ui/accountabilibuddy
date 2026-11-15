@@ -1,0 +1,23 @@
+# ABB launch gate
+
+- [x] Independent Worker provisioned
+- [x] Foundation D1 database provisioned, initial schema applied
+- [x] Private R2 evidence bucket provisioned
+- [x] GitHub repository connected at the Cloudflare builds repository-connection layer
+- [x] Read-only preview routes; privileged access disabled
+- [x] ABB editorial prototype and interactive 50-state Big Board committed
+- [x] Staging-only private PRM service binding added
+- [ ] Confirm external worker URL, UI rendering, state zoom behavior and mobile layout
+- [ ] Add fully credentialed Cloudflare Builds trigger using project-specific least-privilege token (do not reuse other projects)
+- [ ] Require protected PR review, CI tests and code scanning before main deployments
+- [ ] Upgrade geographic source to official U.S. Census 120th Congress and county boundaries with license/accuracy validation
+- [ ] Implement source ingestion, normalization and historical snapshots
+- [ ] Build staff SSO/passkeys, MFA, granular permission enforcement and moderation UI
+- [ ] Add two-person approval and publication/audit export flows
+- [ ] Complete PRM staging read-only contract test and migration/rollback plan; do not touch PRM production without approval
+- [ ] Secure all write endpoints with server-side authorization, WAF/Turnstile/rate limits, idempotency and logging
+- [ ] Test scheduled backups, restores and disaster recovery
+- [ ] Integrate source freshness metrics and documented independent editorial process
+- [ ] Public download snapshots with integrity manifests and offline geography packages
+- [ ] Threat-model and independently security-test before receiving public submissions
+- [ ] Load-test database and migrate to PostgreSQL + Hyperdrive if required by actual traffic and data volume
