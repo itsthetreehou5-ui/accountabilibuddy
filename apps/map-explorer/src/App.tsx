@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap, type ExpressionSpecification } from 'maplibre-gl';
+import maplibregl, { setWorkerUrl, type GeoJSONSource, type Map as MapLibreMap, type ExpressionSpecification } from 'maplibre-gl';
+import mapLibreWorkerURL from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+setWorkerUrl(mapLibreWorkerURL);
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Feature, FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
 
@@ -186,7 +188,7 @@ export default function App(){
     'fill-opacity':.68
    }});
    map.addLayer({id:'abb-state-borders',type:'line',source:'abb-states',paint:{'line-color':'#ffffff','line-width':1.5}});
-   map.addSource('abb-counties',{type:'geojson',data:EMPTY,promoteId:'GEOID'});
+   map.addSource('abb-counties',{type:'geojson',data:countyRef.current,promoteId:'GEOID'});
    map.addLayer({id:'abb-county-fills',type:'fill',source:'abb-counties',paint:{'fill-color':'#a0bacf','fill-opacity':.68}});
    map.addLayer({id:'abb-county-borders',type:'line',source:'abb-counties',paint:{'line-color':'#ffffff','line-width':1.35}});
    map.addLayer({id:'abb-county-selected',type:'line',source:'abb-counties',filter:['==',['get','GEOID'],'__none__'],paint:{'line-color':'#102e4a','line-width':3.8}});
@@ -209,8 +211,14 @@ export default function App(){
    // Reconcile a state selected through the non-visual control before WebGL finished loading.
    const initial=selectionRef.current;
    if(initial.state){
+    const county=initial.county?countyRef.current.features.find(f=>String(f.properties?.GEOID)===initial.county):undefined;
     const f=stateRef.current.features.find(f=>stateCode(f)===initial.state);
-    if(f)fitFeature(map,f,'state',reduced);
+    if(county)fitFeature(map,county,'county',reduced);
+    else if(f)fitFeature(map,f,'state',reduced);
+    ['abb-county-fills','abb-county-borders','abb-county-selected'].forEach(id=>map.setLayoutProperty(id,'visibility','visible'));
+    map.setFilter('abb-county-selected',['==',['get','GEOID'],initial.county||'__none__']);
+   } else {
+    ['abb-county-fills','abb-county-borders','abb-county-selected'].forEach(id=>map.setLayoutProperty(id,'visibility','none'));
    }
   });
   map.on('error',e=>{console.warn('ABB map engine error',e.error?.message||e)});
