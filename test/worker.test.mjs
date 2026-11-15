@@ -199,3 +199,27 @@ test('context UI opens a source-backed action trail',async()=>{
  assert.match(html,/Prior commitments and alignment review/);
  assert.match(html,/id="local-signals"/);
 });
+
+test('map-first contextual dock replaces disconnected Explore section',async()=>{
+ const r=await worker.fetch(req('/'),{});
+ const h=await r.text();
+ assert.match(h,/id="explorer-canvas"/);
+ assert.match(h,/id="context-body"/);
+ assert.match(h,/data-context-tab="timeline"/);
+ assert.match(h,/data-context-tab="promises"/);
+ assert.match(h,/data-context-tab="evidence"/);
+ assert.match(h,/function contextualPanel/);
+ assert.match(h,/id="coverage-headline"/);
+ assert.doesNotMatch(h,/EXPLORE \/ MORE THAN THE HEADLINES/);
+});
+test('kinetic geographical focus respects interaction and reduced motion',async()=>{
+ const r=await worker.fetch(req('/'),{});
+ const h=await r.text();
+ assert.match(h,/id="focus-map-surface"/);
+ assert.match(h,/id="map-focus-bubble"/);
+ assert.match(h,/id="map-zoom-in"/);
+ assert.match(h,/id="map-zoom-out"/);
+ assert.match(h,/function updateMapFocusLabel/);
+ assert.match(h,/function controlledZoom/);
+ assert.match(h,/prefers-reduced-motion:reduce/);
+});
