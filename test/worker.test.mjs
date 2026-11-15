@@ -88,3 +88,15 @@ test('editorial redesign and interactive data journalism previews render',async(
   assert.match(html,/100 U\.S\. Senate seats/);
   assert.match(html,/not live results/);
 });
+
+test('map-first homepage offers immediate state answers',async()=>{
+ const r=await worker.fetch(req('/'),{});
+ const html=await r.text();
+ assert.match(html,/id="hero-explorer"/);
+ assert.match(html,/id="hero-state-select"/);
+ assert.match(html,/id="hero-answer-title"/);
+ assert.match(html,/id="hero-map-svg"/);
+ assert.match(html,/heroMap\.addEventListener\('click'/);
+ assert.match(html,/heroUpdate\(\)/);
+ assert.match(html,/A precise address is needed/);
+});
